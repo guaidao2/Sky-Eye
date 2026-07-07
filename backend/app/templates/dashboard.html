@@ -277,8 +277,7 @@ async function loadAttackSurface() {
       vpn:'VPN',db:'数据库',monitor:'监控',oa:'OA',pay:'支付'};
     let html = surface.high_value.slice(0, 24).map(s => {
       const c = catColors[s.category]||'secondary', n = catNames[s.category]||s.category;
-      return '<div class=\"col-auto\"><span class=\"badge bg-'+c+' m-1\" style=\"font-size:0.82rem;cursor:pointer;\" title=\"'+
-             s.label+' | 优先级P'+s.priority+'\">'+s.subdomain+' <small>('+n+')</small></span></div>';
+      return '<div class=\"col-auto\"><span class=\"badge bg-'+c+' m-1\" style=\"font-size:0.82rem;cursor:pointer;\" title=\"'+ s.label+' | P'+s.priority+' — 点击查看详情\" onclick=\"window.location.href=\'/assets?q='+encodeURIComponent(s.subdomain)+'\'\">'+s.subdomain+' <small>('+n+')</small></span></div>';
     }).join('');
     if (surface.by_category) {
       html += '<div class=\"col-12 mt-2 small text-secondary\">分类统计: ';

@@ -21,10 +21,10 @@
   <div class="col-md-8">
     <!-- 资产Tabs -->
     <ul class="nav nav-tabs" id="assetTabs" style="display:none;">
-      <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-subdomains">子域名</a></li>
-      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-ips">IP/端口</a></li>
-      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-urls">URL</a></li>
-      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-fingerprints">指纹</a></li>
+      <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-subdomains" onclick="setTimeout(loadSubdomains,100)">子域名</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-ips" onclick="setTimeout(loadIPs,100)">IP/端口</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-urls" onclick="setTimeout(loadURLs,100)">URL</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-fingerprints" onclick="setTimeout(loadFingerprints,100)">指纹</a></li>
     </ul>
     <div class="tab-content" id="assetTabContent">
       <div class="tab-pane fade show active" id="tab-subdomains">
@@ -109,7 +109,15 @@ async function loadOrgs() {
     </a>`).join('');
 }
 
-function selectOrg(id) { currentOrgId = id; document.getElementById('assetTabs').style.display='flex'; loadOrgs(); loadSubdomains(); }
+function selectOrg(id) {
+  currentOrgId = id;
+  document.getElementById('assetTabs').style.display='flex';
+  loadOrgs();
+  loadSubdomains();
+  document.getElementById('ipBody').innerHTML='<tr><td colspan="5" class="text-center text-secondary">点击上方 IP/端口 标签页加载</td></tr>';
+  document.getElementById('urlBody').innerHTML='<tr><td colspan="4" class="text-center text-secondary">点击上方 URL 标签页加载</td></tr>';
+  document.getElementById('fpBody').innerHTML='<tr><td colspan="4" class="text-center text-secondary">点击上方 指纹 标签页加载</td></tr>';
+}
 async function deleteOrg(id) {
   const o = allOrgs.find(x=>x.id===id);
   if (!confirm('确定删除组织 "'+(o?o.name:'')+'" 及其所有关联资产吗？此操作不可恢复！')) return;
@@ -167,9 +175,49 @@ async function loadSubdomains() {
 }
 
 // ── IP/端口 ──
-async function loadIPs() { /* TODO: implement full IP drill-down */ document.getElementById('ipBody').innerHTML='<tr><td colspan="5" class="text-center text-secondary">加载中...</td></tr>'; }
-async function loadURLs() { document.getElementById('urlBody').innerHTML='<tr><td colspan="4" class="text-center text-secondary">加载中...</td></tr>'; }
-async function loadFingerprints() { document.getElementById('fpBody').innerHTML='<tr><td colspan="4" class="text-center text-secondary">加载中...</td></tr>'; }
+async function loadIPs() {
+  if (!currentOrgId) return;
+  // 通过子域名获取关联 IP
+  const sdRes = await fetch('/api/v1/organizations/'+currentOrgId+'/subdomains');
+  const subs = await sdRes.json();
+  const ips = [...new Set(subs.filter(s=>s.ip).map(s=>s.ip))];
+  if (!ips.length) { document.getElementById('ipBody').innerHTML='<tr><td colspan="5" class="text-center text-secondary">暂无IP</td></tr>'; return; }
+  // 获取 IP 详情
+  const allIPs = await (await fetch('/api/v1/ips')).json();
+  const matched = allIPs.filter(ip => ips.includes(ip.ip));
+  let html = '';
+  for (const ip of matched.slice(0, 50)) {
+    const portsRes = await fetch('/api/v1/ips/'+ip.id+'/ports');
+    const ports = await portsRes.json();
+    const portStr = ports.length ? ports.slice(0,8).map(p=>p.port+'/'+(p.service||p.protocol||'tcp')).join(', ') : '-';
+    html += '<tr><td><code>'+esc(ip.ip)+'</code></td><td>'+portStr+'</td><td>'+(ip.asn_org||'-')+'</td><td><small>'+(ip.country||'')+' '+(ip.province||'')+' '+(ip.city||'')+'</small></td><td>'+(ip.is_cdn?'<span class=\"badge bg-warning\">CDN</span>':'<span class=\"badge bg-success\">源站</span>')+'</td></tr>';
+  }
+  document.getElementById('ipBody').innerHTML = html || '<tr><td colspan="5" class="text-center text-secondary">无数据</td></tr>';
+}
+
+// ── URL ──
+async function loadURLs() {
+  if (!currentOrgId) return;
+  const res = await fetch('/api/v1/urls?org_id='+currentOrgId+'&limit=200');
+  const urls = await res.json();
+  document.getElementById('urlBody').innerHTML = urls.length ? urls.map(u => '<tr><td><code>'+esc(u.url)+'</code></td><td><span class="badge bg-'+(u.status_code===200?'success':u.status_code>=400?'danger':'warning')+'">'+u.status_code+'</span></td><td>'+(u.title||'-')+'</td><td>'+(u.tech_stack||'-')+'</td></tr>').join('') : '<tr><td colspan="4" class="text-center text-secondary">暂无URL — 请先运行信息收集任务</td></tr>';
+}
+
+// ── 指纹 ──
+async function loadFingerprints() {
+  if (!currentOrgId) return;
+  const res = await fetch('/api/v1/fingerprints?limit=200');
+  const fps = await res.json();
+  // 关联到当前组织的 URL
+  const urlsRes = await fetch('/api/v1/urls?org_id='+currentOrgId+'&limit=200');
+  const urls = await urlsRes.json();
+  const urlIds = new Set(urls.map(u=>u.id));
+  const matched = fps.filter(f => urlIds.has(f.url_id));
+  document.getElementById('fpBody').innerHTML = matched.length ? matched.slice(0,100).map(f => {
+    const url = urls.find(u=>u.id===f.url_id);
+    return '<tr><td><small><code>'+esc(url?url.url:'')+'</code></small></td><td><strong>'+esc(f.name)+'</strong>'+(f.version?' <small>v'+esc(f.version)+'</small>':'')+'</td><td><span class=\"badge bg-'+ (catColors[f.category]||'secondary')+'\">'+(catNames[f.category]||f.category||'other')+'</span></td><td><span class=\"badge bg-'+priColors[f.value_level]+'\">P'+f.value_level+'</span></td></tr>';
+  }).join('') : '<tr><td colspan="4" class="text-center text-secondary">暂无指纹 — 请先运行信息收集任务</td></tr>';
+}
 
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 loadOrgs();
