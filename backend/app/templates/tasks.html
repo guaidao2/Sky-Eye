@@ -257,12 +257,7 @@ async function cancelTask(id) {
 
 async function retryTask(id) {
   if (!confirm('确定重试任务 #'+id+' 吗？')) return;
-  const task = allTasks.find(t => t.id === id);
-  if (!task) return;
-  await fetch('/api/v1/tasks', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ org_id: task.org_id, name: task.name+' (重试)', task_type: task.task_type, target: task.target })
-  });
+  await fetch('/api/v1/tasks/'+id+'/retry', {method:'PUT'});
   await fetchTasks();
 }
 

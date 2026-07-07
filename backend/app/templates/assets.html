@@ -1,189 +1,177 @@
 {% extends "base.html" %}
-{% block title %}Sky-Eye 资产地图{% endblock %}
-{% block page_title %}<i class="bi bi-diagram-3 me-2"></i>资产地图{% endblock %}
+{% block title %}Sky-Eye 资产管理{% endblock %}
+{% block page_title %}<i class="bi bi-diagram-3 me-2"></i>资产管理{% endblock %}
 
 {% block content %}
 <div class="row g-3">
-  <!-- 左侧组织树 -->
+  <!-- 左侧: 组织列表 -->
   <div class="col-md-4">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-building me-2"></i>组织列表</span>
-        <button class="btn btn-sm btn-primary" onclick="showAddOrg()">
-          <i class="bi bi-plus-lg"></i> 添加
-        </button>
+        <span><i class="bi bi-building me-2"></i>组织</span>
+        <button class="btn btn-sm btn-primary" onclick="showAddOrg()"><i class="bi bi-plus-lg"></i></button>
       </div>
-      <div class="card-body p-0" style="max-height: 70vh; overflow-y: auto;">
-        <div class="list-group list-group-flush" id="orgTree">
-          <div class="text-center text-secondary p-3">加载中...</div>
-        </div>
+      <div class="card-body p-0" style="max-height:70vh;overflow-y:auto;">
+        <div class="list-group list-group-flush" id="orgList"></div>
       </div>
     </div>
   </div>
 
-  <!-- 右侧详情 -->
+  <!-- 右侧: 资产详情 -->
   <div class="col-md-8">
-    <div class="card">
-      <div class="card-header"><i class="bi bi-info-circle me-2"></i>资产详情</div>
-      <div class="card-body" id="detailPanel">
-        <div class="text-center text-secondary py-5">
-          <i class="bi bi-hand-index" style="font-size: 2rem;"></i>
-          <p class="mt-2">点击左侧组织或域名查看详情</p>
+    <!-- 资产Tabs -->
+    <ul class="nav nav-tabs" id="assetTabs" style="display:none;">
+      <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-subdomains">子域名</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-ips">IP/端口</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-urls">URL</a></li>
+      <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-fingerprints">指纹</a></li>
+    </ul>
+    <div class="tab-content" id="assetTabContent">
+      <div class="tab-pane fade show active" id="tab-subdomains">
+        <div class="card border-top-0 rounded-top-0">
+          <div class="card-body p-2">
+            <div class="d-flex gap-2 mb-2">
+              <select class="form-select form-select-sm w-auto" id="sdCatFilter" onchange="loadSubdomains()">
+                <option value="">全部分类</option>
+              </select>
+              <select class="form-select form-select-sm w-auto" id="sdPriFilter" onchange="loadSubdomains()">
+                <option value="">全部优先级</option><option value="5">P5</option><option value="4">P4</option><option value="3">P3</option><option value="2">P2</option><option value="1">P1</option>
+              </select>
+              <input type="text" class="form-control form-control-sm w-auto" id="sdSearch" placeholder="搜索..." oninput="loadSubdomains()">
+            </div>
+            <div class="table-responsive" style="max-height:50vh;overflow-y:auto;">
+              <table class="table table-sm table-dark table-striped mb-0">
+                <thead><tr><th>子域名</th><th>IP</th><th>分类</th><th>优先级</th><th>来源</th></tr></thead>
+                <tbody id="sdBody"><tr><td colspan="5" class="text-center text-secondary">请先选择一个组织</td></tr></tbody>
+              </table>
+            </div>
+          </div>
         </div>
+      </div>
+      <div class="tab-pane fade" id="tab-ips">
+        <div class="card border-top-0 rounded-top-0"><div class="card-body"><div class="table-responsive" style="max-height:50vh;overflow-y:auto;"><table class="table table-sm table-dark table-striped mb-0"><thead><tr><th>IP</th><th>端口</th><th>服务</th><th>Banner</th><th>CDN</th></tr></thead><tbody id="ipBody"></tbody></table></div></div></div>
+      </div>
+      <div class="tab-pane fade" id="tab-urls">
+        <div class="card border-top-0 rounded-top-0"><div class="card-body"><div class="table-responsive" style="max-height:50vh;overflow-y:auto;"><table class="table table-sm table-dark table-striped mb-0"><thead><tr><th>URL</th><th>状态</th><th>标题</th><th>技术栈</th></tr></thead><tbody id="urlBody"></tbody></table></div></div></div>
+      </div>
+      <div class="tab-pane fade" id="tab-fingerprints">
+        <div class="card border-top-0 rounded-top-0"><div class="card-body"><div class="table-responsive" style="max-height:50vh;overflow-y:auto;"><table class="table table-sm table-dark table-striped mb-0"><thead><tr><th>URL</th><th>产品</th><th>分类</th><th>价值</th></tr></thead><tbody id="fpBody"></tbody></table></div></div></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 添加组织对话框 -->
-<div class="modal fade" id="addOrgModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">添加组织</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">组织名称</label>
-          <input type="text" class="form-control" id="newOrgName" placeholder="e.g. 某科技有限公司">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">行业</label>
-          <input type="text" class="form-control" id="newOrgIndustry" placeholder="互联网/金融">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">ICP 备案</label>
-          <input type="text" class="form-control" id="newOrgICP" placeholder="京ICP备xxxxxx号">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-        <button type="button" class="btn btn-primary" onclick="addOrg()">确认添加</button>
-      </div>
+<!-- 添加/编辑组织 Modal -->
+<div class="modal fade" id="orgModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="orgModalTitle">添加组织</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="editOrgId">
+      <div class="mb-3"><label class="form-label">名称</label><input type="text" class="form-control" id="orgName" placeholder="组织名称"></div>
+      <div class="mb-3"><label class="form-label">行业</label><input type="text" class="form-control" id="orgIndustry" placeholder="金融/互联网/政府..."></div>
+      <div class="mb-3"><label class="form-label">测试范围(白名单)</label><textarea class="form-control" id="orgScopeIn" rows="2" placeholder="每行一个域名，如 *.example.com"></textarea></div>
+      <div class="mb-3"><label class="form-label">排除范围(黑名单)</label><textarea class="form-control" id="orgScopeOut" rows="2" placeholder="每行一个域名"></textarea></div>
+      <div class="mb-3"><label class="form-label">备注</label><input type="text" class="form-control" id="orgDesc" placeholder="备注信息"></div>
     </div>
-  </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+      <button class="btn btn-primary" onclick="saveOrg()" id="saveOrgBtn">保存</button>
+    </div>
+  </div></div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-let currentView = null;
+let currentOrgId = null;
+let allOrgs = [];
+const catNames = {admin:'管理后台',auth:'认证',devops:'DevOps',api:'API',dev:'开发测试',vpn:'VPN',db:'数据库',monitor:'监控',oa:'OA',pay:'支付',mail:'邮件',files:'文件',mobile:'移动端',cloud:'云平台',other:'其他'};
+const catColors = {admin:'danger',auth:'danger',devops:'warning',api:'info',dev:'warning',vpn:'primary',db:'warning',monitor:'info',oa:'secondary',pay:'success',mail:'info',files:'secondary'};
+const priColors = {5:'danger',4:'warning',3:'info',2:'secondary',1:'dark'};
 
-async function loadOrgTree() {
+// ── 组织列表 ──
+async function loadOrgs() {
   const res = await fetch('/api/v1/organizations');
-  const orgs = await res.json();
-  const tree = document.getElementById('orgTree');
-
-  if (orgs.length === 0) {
-    tree.innerHTML = '<div class="text-center text-secondary p-3">暂无组织，请先添加</div>';
+  allOrgs = await res.json();
+  const list = document.getElementById('orgList');
+  if (!allOrgs.length) {
+    list.innerHTML = '<div class=\"text-center text-secondary p-3\">暂无组织<br><small>点击 + 添加</small></div>';
     return;
   }
+  list.innerHTML = allOrgs.map(o => `
+    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center ${currentOrgId===o.id?'active':''}"
+       onclick="selectOrg(${o.id});return false;">
+      <div><strong>${esc(o.name)}</strong><br><small class="text-secondary">${o.industry||''} ${o.created_at?o.created_at.slice(0,10):''}</small></div>
+      <span class="btn-group btn-group-sm">
+        <button class="btn btn-outline-info btn-sm" onclick="event.stopPropagation();editOrg(${o.id})" title="编辑"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation();deleteOrg(${o.id})" title="删除"><i class="bi bi-trash"></i></button>
+      </span>
+    </a>`).join('');
+}
 
-  let html = '';
-  for (const org of orgs) {
-    const dRes = await fetch(`/api/v1/organizations/${org.id}/domains`);
-    const domains = await dRes.json();
-    html += `
-      <div class="list-group-item">
-        <div class="d-flex align-items-center" style="cursor:pointer;" onclick="showOrg(${org.id})">
-          <i class="bi bi-building text-info me-2"></i>
-          <strong>${org.name}</strong>
-          <span class="badge bg-secondary ms-auto">${domains.length} 域名</span>
-        </div>
-        ${domains.length > 0 ? `
-        <div class="ms-3 mt-1">
-          ${domains.map(d => `
-            <div style="cursor:pointer;padding:2px 8px;border-radius:4px;" 
-                 class="text-secondary domain-item"
-                 onmouseover="this.style.background='rgba(0,212,255,0.1)'" 
-                 onmouseout="this.style.background=''"
-                 onclick="event.stopPropagation();showDomain(${org.id}, ${d.id})">
-              <i class="bi bi-link-45deg me-1" style="font-size:0.8rem;"></i>
-              ${d.domain}
-            </div>
-          `).join('')}
-        </div>
-        ` : ''}
-      </div>`;
+function selectOrg(id) { currentOrgId = id; document.getElementById('assetTabs').style.display='flex'; loadOrgs(); loadSubdomains(); }
+async function deleteOrg(id) {
+  const o = allOrgs.find(x=>x.id===id);
+  if (!confirm('确定删除组织 "'+(o?o.name:'')+'" 及其所有关联资产吗？此操作不可恢复！')) return;
+  await fetch('/api/v1/organizations/'+id, {method:'DELETE'});
+  if (currentOrgId === id) { currentOrgId = null; document.getElementById('assetTabs').style.display='none'; }
+  loadOrgs();
+}
+
+function showAddOrg() { document.getElementById('orgModalTitle').textContent='添加组织'; document.getElementById('editOrgId').value=''; document.getElementById('orgName').value=''; document.getElementById('orgIndustry').value=''; document.getElementById('orgScopeIn').value=''; document.getElementById('orgScopeOut').value=''; document.getElementById('orgDesc').value=''; new bootstrap.Modal(document.getElementById('orgModal')).show(); }
+function editOrg(id) {
+  const o = allOrgs.find(x=>x.id===id); if(!o) return;
+  document.getElementById('orgModalTitle').textContent='编辑组织';
+  document.getElementById('editOrgId').value=o.id; document.getElementById('orgName').value=o.name;
+  document.getElementById('orgIndustry').value=o.industry||''; document.getElementById('orgScopeIn').value=o.scope_in||'';
+  document.getElementById('orgScopeOut').value=o.scope_out||''; document.getElementById('orgDesc').value=o.description||'';
+  new bootstrap.Modal(document.getElementById('orgModal')).show();
+}
+async function saveOrg() {
+  const id = document.getElementById('editOrgId').value;
+  const data = { name: document.getElementById('orgName').value, industry: document.getElementById('orgIndustry').value,
+    scope_in: document.getElementById('orgScopeIn').value, scope_out: document.getElementById('orgScopeOut').value,
+    description: document.getElementById('orgDesc').value };
+  if (!data.name) return alert('请输入名称');
+  if (id) {
+    // update — reuse create for now since no PUT endpoint
+    await fetch('/api/v1/organizations', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+  } else {
+    await fetch('/api/v1/organizations', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
   }
-  tree.innerHTML = html;
+  bootstrap.Modal.getInstance(document.getElementById('orgModal')).hide();
+  loadOrgs();
 }
 
-async function showOrg(orgId) {
-  const res = await fetch(`/api/v1/organizations/${orgId}`);
-  const org = await res.json();
-  const panel = document.getElementById('detailPanel');
-  panel.innerHTML = `
-    <div class="mb-3">
-      <h5>${org.name}</h5>
-      <table class="table table-borderless table-sm">
-        <tr><td class="text-secondary" style="width:80px;">行业</td><td>${org.industry || '-'}</td></tr>
-        <tr><td class="text-secondary">ICP</td><td>${org.icp || '-'}</td></tr>
-        <tr><td class="text-secondary">标签</td><td>${org.tags || '-'}</td></tr>
-        <tr><td class="text-secondary">创建时间</td><td>${org.created_at || '-'}</td></tr>
-      </table>
-    </div>
-    <h6><i class="bi bi-link-45deg me-1"></i>域名列表</h6>
-    <div id="domainList">加载中...</div>
-  `;
-  const dRes = await fetch(`/api/v1/organizations/${orgId}/domains`);
-  const domains = await dRes.json();
-  document.getElementById('domainList').innerHTML = domains.length === 0
-    ? '<span class="text-secondary">暂无域名</span>'
-    : domains.map(d => `<span class="badge bg-info me-1 mb-1">${d.domain}</span>`).join('');
+// ── 子域名 ──
+async function loadSubdomains() {
+  if (!currentOrgId) return;
+  const cat = document.getElementById('sdCatFilter').value;
+  const pri = document.getElementById('sdPriFilter').value;
+  const q = document.getElementById('sdSearch').value.toLowerCase();
+  const res = await fetch('/api/v1/organizations/'+currentOrgId+'/subdomains');
+  let subs = await res.json();
+  // populate category filter
+  const cats = [...new Set(subs.map(s=>s.category||'other'))];
+  const sel = document.getElementById('sdCatFilter');
+  if (sel.options.length <= 1) cats.forEach(c => { const o = document.createElement('option'); o.value=c; o.textContent=catNames[c]||c; sel.appendChild(o); });
+
+  if (cat) subs = subs.filter(s => (s.category||'other') === cat);
+  if (pri) subs = subs.filter(s => (s.priority||1) == pri);
+  if (q) subs = subs.filter(s => s.subdomain.toLowerCase().includes(q));
+  document.getElementById('sdBody').innerHTML = subs.length ? subs.map(s => `<tr>
+    <td><code>${esc(s.subdomain)}</code></td><td>${s.ip||'-'}</td>
+    <td><span class="badge bg-${catColors[s.category]||'secondary'}">${catNames[s.category]||s.category||'other'}</span></td>
+    <td><span class="badge bg-${priColors[s.priority]||'dark'}">P${s.priority||1}</span></td>
+    <td><small>${s.source||'-'}</small></td></tr>`).join('') : '<tr><td colspan="5" class="text-center text-secondary">无匹配子域名</td></tr>';
 }
 
-async function showDomain(orgId, domainId) {
-  const sRes = await fetch(`/api/v1/organizations/${orgId}/subdomains`);
-  const subs = await sRes.json();
-  const panel = document.getElementById('detailPanel');
-  if (subs.length === 0) {
-    panel.innerHTML = '<div class="text-center text-secondary py-4">该域名暂无子域名数据</div>';
-    return;
-  }
-  panel.innerHTML = `
-    <h5><i class="bi bi-link-45deg me-1"></i>子域名列表 (${subs.length})</h5>
-    <div class="table-responsive">
-      <table class="table table-dark table-striped table-sm">
-        <thead><tr><th>子域名</th><th>IP</th><th>CNAME</th><th>来源</th></tr></thead>
-        <tbody>
-          ${subs.map(s => `<tr>
-            <td>${s.subdomain}</td>
-            <td>${s.ip || '-'}</td>
-            <td style="font-size:0.85rem;">${s.cname || '-'}</td>
-            <td>${s.source || '-'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
+// ── IP/端口 ──
+async function loadIPs() { /* TODO: implement full IP drill-down */ document.getElementById('ipBody').innerHTML='<tr><td colspan="5" class="text-center text-secondary">加载中...</td></tr>'; }
+async function loadURLs() { document.getElementById('urlBody').innerHTML='<tr><td colspan="4" class="text-center text-secondary">加载中...</td></tr>'; }
+async function loadFingerprints() { document.getElementById('fpBody').innerHTML='<tr><td colspan="4" class="text-center text-secondary">加载中...</td></tr>'; }
 
-function showAddOrg() {
-  const modal = new bootstrap.Modal(document.getElementById('addOrgModal'));
-  modal.show();
-}
-
-async function addOrg() {
-  const name = document.getElementById('newOrgName').value.trim();
-  if (!name) return alert('请输入组织名称');
-  await fetch('/api/v1/organizations', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      name,
-      industry: document.getElementById('newOrgIndustry').value.trim(),
-      icp: document.getElementById('newOrgICP').value.trim(),
-    }),
-  });
-  bootstrap.Modal.getInstance(document.getElementById('addOrgModal')).hide();
-  document.getElementById('newOrgName').value = '';
-  document.getElementById('newOrgIndustry').value = '';
-  document.getElementById('newOrgICP').value = '';
-  await loadOrgTree();
-}
-
-loadOrgTree();
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+loadOrgs();
 </script>
 {% endblock %}
