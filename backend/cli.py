@@ -145,12 +145,11 @@ def brute(
             console.print(f"  字典: {wordlist}")
         else:
             console.print(f"  字典: 内置 {len(collector._load_wordlist())} 词")
-
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
-            progress.add_task("DNS爆破中...", total=None)
-            raw_subs = asyncio.run(collector.collect(domain, brute=True))
-
-        subdomains = list(raw_subs["subdomains"])
+        console.print("  DNS爆破中...")
+        raw_subs = asyncio.run(collector.collect(domain, brute=True))
+        if not raw_subs:
+            console.print("[yellow]收集失败[/]"); return
+        subdomains = list(raw_subs.get("subdomains", []))
         console.print(f"  发现: {len(subdomains)} 个子域名")
 
         if not subdomains:
@@ -190,9 +189,8 @@ def brute(
             targets.append({"host": sd, "port": 80, "scheme": "http"})
             targets.append({"host": sd, "port": 443, "scheme": "https"})
 
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
-            progress.add_task(f"探测 {len(targets)} 个端点...", total=None)
-            web_results = asyncio.run(prober.probe(targets))
+        console.print(f"探测 {len(targets)} 个端点...")
+        web_results = asyncio.run(prober.probe(targets))
 
         alive = [w for w in web_results if w.get("alive")]
         console.print(f"  存活: {len(alive)}")
