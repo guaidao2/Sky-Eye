@@ -53,30 +53,30 @@ class FingerprintEngine:
         print(f"  [指纹] 已加载 {len(self.fingerprints)} 条规则")
 
     def match(self, url: str, status_code: int, headers: dict,
-              body: str = "", favicon_hash: str = None) -> List[Dict]:
-        """对单个 Web 资产执行指纹匹配
-
-        Args:
-            url: 完整 URL
-            status_code: HTTP 状态码
-            headers: 响应头字典
-            body: 响应正文
-            favicon_hash: Favicon mmh3 hash
-
-        Returns:
-            匹配到的指纹列表 [{name, category, value, tags, matched_rules}, ...]
-        """
+              body: str = "", favicon_hash: str = None,
+              min_confidence: float = 0.3) -> List[Dict]:
+        """对单个 Web 资产执行指纹匹配"""
         if not self._loaded:
             self.load_fingerprints()
 
         results = []
         parsed = urlparse(url)
         path = parsed.path or "/"
+        seen = set()
 
         for fp in self.fingerprints:
-            matched = False
-            matched_rules = []
+            name = fp.get("name", "")
+            if not name or name in seen:
+                continue
+
             rules = fp.get("rules", [])
+            if not rules:
+                continue
+
+            rules_condition = fp.get("condition", "or")
+            total_rules = len(rules)
+            matched_count = 0
+            matched_rules = []
 
             for rule in rules:
                 rule_type = rule.get("type", "")
@@ -85,18 +85,32 @@ class FingerprintEngine:
 
                 if self._match_rule(rule_type, pattern, match_field,
                                     url, path, headers, body, favicon_hash):
-                    matched = True
+                    matched_count += 1
                     matched_rules.append(f"{rule_type}:{pattern[:30]}")
 
-            if matched:
-                results.append({
-                    "name": fp.get("name", "Unknown"),
-                    "category": fp.get("category", "unknown"),
-                    "value": fp.get("value", 2),
-                    "tags": fp.get("tags", []),
-                    "matched_rules": matched_rules,
-                })
+            if matched_count == 0:
+                continue
 
+            if rules_condition == "and" and matched_count < total_rules:
+                continue
+
+            confidence = matched_count / min(total_rules, 4)
+            if confidence < min_confidence:
+                continue
+
+            seen.add(name)
+            results.append({
+                "name": name,
+                "category": fp.get("category", "unknown"),
+                "value": fp.get("value", 2),
+                "tags": fp.get("tags", []),
+                "confidence": round(confidence, 2),
+                "matched_count": f"{matched_count}/{total_rules}",
+                "matched_rules": matched_rules,
+                "source": "yaml",
+            })
+
+        results.sort(key=lambda x: (-x["confidence"], -x["value"]))
         return results
 
     def _match_rule(self, rule_type: str, pattern: str,
