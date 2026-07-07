@@ -249,7 +249,7 @@ def create_task(data: TaskCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(task)
 
-    if data.task_type == "recon":
+    if data.task_type in ("recon", "vulnscan"):
         task_id = task.id
         thread = threading.Thread(
             target=_run_recon_sync, args=(task_id,), daemon=True

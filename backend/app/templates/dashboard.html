@@ -77,18 +77,24 @@
 
 <!-- 快速开始 -->
 <div class="card mb-4">
-  <div class="card-header"><i class="bi bi-rocket-takeoff me-2"></i>快速开始</div>
+  <div class="card-header"><i class="bi bi-rocket-takeoff me-2"></i>快速开始 — 支持域名或 IP</div>
   <div class="card-body">
     <form id="reconForm" class="row g-3">
       <div class="col-md-5">
-        <input type="text" class="form-control" id="targetDomain" placeholder="目标域名, e.g. example.com" required>
-      </div>
-      <div class="col-md-4">
-        <input type="text" class="form-control" id="orgName" placeholder="组织名称 (可选)">
+        <input type="text" class="form-control" id="targetDomain" placeholder="域名或 IP, e.g. example.com / 1.2.3.4" required>
       </div>
       <div class="col-md-3">
+        <input type="text" class="form-control" id="orgName" placeholder="组织名称 (可选)">
+      </div>
+      <div class="col-md-2">
+        <select class="form-select" id="taskType">
+          <option value="recon">全链路扫描</option>
+          <option value="vulnscan">仅漏洞检测</option>
+        </select>
+      </div>
+      <div class="col-md-2">
         <button type="submit" class="btn btn-primary w-100" id="startBtn">
-          <i class="bi bi-search me-1"></i> 开始信息收集
+          <i class="bi bi-search me-1"></i> 开始扫描
         </button>
       </div>
     </form>
@@ -106,7 +112,8 @@
           <tr>
             <th>任务名称</th>
             <th>目标</th>
-            <th>类型</th>
+            <th>目标类型</th>
+            <th>扫描类型</th>
             <th>状态</th>
             <th>进度</th>
             <th>结果</th>
@@ -114,7 +121,7 @@
           </tr>
         </thead>
         <tbody id="taskBody">
-          <tr><td colspan="7" class="text-center text-secondary">加载中...</td></tr>
+          <tr><td colspan="8" class="text-center text-secondary">加载中...</td></tr>
         </tbody>
       </table>
     </div>
@@ -149,7 +156,7 @@ async function loadTasks() {
   const tasks = await res.json();
   const tbody = document.getElementById('taskBody');
   if (tasks.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary">暂无任务</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary">暂无任务</td></tr>';
     return;
   }
   tbody.innerHTML = tasks.slice(0, 10).map(t => {
@@ -159,6 +166,7 @@ async function loadTasks() {
     return `<tr>
       <td>${t.name}</td>
       <td>${t.target}</td>
+      <td><span class="badge bg-secondary">${t.target_type || 'domain'}</span></td>
       <td><span class="badge bg-${typeMap[t.task_type] || 'info'}">${t.task_type}</span></td>
       <td><span class="badge bg-${badgeMap[t.status]}">${statusMap[t.status] || t.status}</span></td>
       <td>
@@ -177,7 +185,8 @@ document.getElementById('reconForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const domain = document.getElementById('targetDomain').value.trim();
   const orgName = document.getElementById('orgName').value.trim() || domain;
-  const statusDiv = document.getElementById('reconStatus');
+  const taskType = document.getElementById('taskType').value;
+  const typeLabel = taskType === 'recon' ? 'Recon' : 'VulnScan';
   const btn = document.getElementById('startBtn');
 
   btn.disabled = true;
@@ -203,8 +212,8 @@ document.getElementById('reconForm').addEventListener('submit', async (e) => {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         org_id: org.id,
-        name: `Recon: ${domain}`,
-        task_type: 'recon',
+        name: `${typeLabel}: ${domain}`,
+        task_type: taskType,
         target: domain,
       }),
     });

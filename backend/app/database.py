@@ -70,6 +70,13 @@ def _migrate_columns():
                 cursor.execute(f"ALTER TABLE organizations ADD COLUMN {col_name} {col_type}")
                 print(f"  [DB] 已补全列: organizations.{col_name}")
 
+        # tasks 表
+        cursor.execute("PRAGMA table_info(tasks)")
+        task_cols = [row[1] for row in cursor.fetchall()]
+        if "target_type" not in task_cols:
+            cursor.execute("ALTER TABLE tasks ADD COLUMN target_type VARCHAR(20) DEFAULT 'domain'")
+            print("  [DB] 已补全列: tasks.target_type")
+
         conn.commit()
         conn.close()
     except Exception as e:

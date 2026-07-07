@@ -15,6 +15,7 @@ class Task(Base):
     name = Column(String(255), nullable=False, comment="任务名称")
     task_type = Column(String(50), nullable=False, comment="任务类型: recon/fingerprint/vulnscan")
     target = Column(String(500), nullable=False, comment="目标: 域名/IP")
+    target_type = Column(String(20), default="domain", comment="目标类型: domain/ip")
     status = Column(String(20), default="pending", comment="状态: pending/running/completed/failed")
     config = Column(Text, nullable=True, comment="任务配置JSON")
     progress = Column(Integer, default=0, comment="进度0-100")

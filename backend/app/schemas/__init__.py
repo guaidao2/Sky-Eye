@@ -118,6 +118,7 @@ class TaskResponse(BaseModel):
     name: str
     task_type: str
     target: str
+    target_type: str | None = "domain"
     status: str
     progress: int
     result_summary: str | None = None
