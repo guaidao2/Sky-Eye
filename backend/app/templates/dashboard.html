@@ -162,95 +162,117 @@ async function loadOverview() {
   } catch(e) {}
 }
 
+let taskRefreshTimer = null;
+
 async function loadTasks() {
   const res = await fetch('/api/v1/tasks');
   const tasks = await res.json();
   const tbody = document.getElementById('taskBody');
   if (tasks.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary">暂无任务</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary">暂无任务 — 在上方输入域名开始扫描</td></tr>';
     return;
   }
   tbody.innerHTML = tasks.slice(0, 10).map(t => {
-    const statusMap = { pending: '等待中', running: '运行中', completed: '已完成', failed: '失败' };
-    const badgeMap = { pending: 'secondary', running: 'warning', completed: 'success', failed: 'danger' };
-    const typeMap = { recon: 'primary', fingerprint: 'success', vulnscan: 'warning' };
-    return `<tr>
-      <td>${t.name}</td>
-      <td>${t.target}</td>
-      <td><span class="badge bg-secondary">${t.target_type || 'domain'}</span></td>
-      <td><span class="badge bg-${typeMap[t.task_type] || 'info'}">${t.task_type}</span></td>
-      <td><span class="badge bg-${badgeMap[t.status]}">${statusMap[t.status] || t.status}</span></td>
-      <td>
-        <div class="progress" style="height: 6px;">
-          <div class="progress-bar" style="width:${t.progress}%;background:#00d4ff;"></div>
-        </div>
-        <small class="text-secondary">${t.progress}%</small>
-      </td>
-      <td><small>${t.result_summary || '-'}</small></td>
-      <td><small class="text-secondary">${t.created_at ? t.created_at.slice(0, 16) : '-'}</small></td>
-    </tr>`;
+    const statusMap = { pending:'等待中',running:'运行中',completed:'已完成',failed:'失败' };
+    const badgeMap = { pending:'secondary',running:'warning',completed:'success',failed:'danger' };
+    const typeMap = { recon:'全链路',vulnscan:'漏扫',fingerprint:'指纹' };
+    const pc = t.status==='failed'?'#dc3545':t.status==='completed'?'#28a745':'#00d4ff';
+    const anim = t.status==='running'?'progress-bar-animated progress-bar-striped':'';
+    let sum = '-'; try { const s=typeof t.result_summary==='string'?JSON.parse(t.result_summary):t.result_summary;
+      const p=[]; if(s.subdomains)p.push(s.subdomains+'子域'); if(s.ports)p.push(s.ports+'端口');
+      if(s.urls)p.push(s.urls+'URL'); if(s.fingerprints)p.push(s.fingerprints+'指纹');
+      if(s.vulns)p.push(s.vulns+'漏洞'); if(s.attack_surface)p.push('P4+:'+s.attack_surface.high_value_count);
+      sum=p.join('|')||'-'; }catch(e){sum=(t.result_summary+'').substring(0,80);}
+    return '<tr class="'+(t.status==='running'?'table-warning':'')+'"><td><strong>'+t.name+'</strong></td><td><code>'+t.target+'</code></td><td><span class="badge bg-secondary">'+(t.target_type||'domain')+'</span></td><td><span class="badge bg-'+(t.task_type==='recon'?'primary':t.task_type==='vulnscan'?'warning':'success')+'">'+(typeMap[t.task_type]||t.task_type)+'</span></td><td><span class="badge bg-'+badgeMap[t.status]+'">'+(statusMap[t.status]||t.status)+'</span></td><td><div class="progress" style="height:6px;"><div class="progress-bar '+anim+'" style="width:'+t.progress+'%;background:'+pc+';"></div></div><small>'+t.progress+'%</small></td><td><small class="text-secondary">'+sum+'</small></td><td><small>'+(t.created_at?t.created_at.slice(5,16).replace('T',' '):'-')+'</small></td></tr>';
   }).join('');
+  const hasRunning = tasks.some(t => t.status==='running');
+  const interval = hasRunning ? 3000 : 10000;
+  if (!taskRefreshTimer || taskRefreshTimer._iv !== interval) {
+    if (taskRefreshTimer) clearInterval(taskRefreshTimer);
+    taskRefreshTimer = setInterval(loadTasks, interval);
+    taskRefreshTimer._iv = interval;
+  }
 }
 
 document.getElementById('reconForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const domain = document.getElementById('targetDomain').value.trim();
-  const orgName = document.getElementById('orgName').value.trim() || domain;
+  const target = document.getElementById('targetDomain').value.trim();
+  const orgName = document.getElementById('orgName').value.trim() || target;
   const taskType = document.getElementById('taskType').value;
-  const typeLabel = taskType === 'recon' ? 'Recon' : 'VulnScan';
+  const typeLabel = taskType === 'recon' ? '全链路扫描' : '漏洞检测';
   const btn = document.getElementById('startBtn');
+  const statusDiv = document.getElementById('reconStatus');
 
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 执行中...';
-  statusDiv.style.display = 'none';
+  btn.innerHTML = '<span class=\"spinner-border spinner-border-sm me-1\"></span> 创建任务中...';
+  statusDiv.style.display = 'block';
+  statusDiv.className = 'alert alert-info mt-2';
+  statusDiv.innerHTML = '<i class=\"bi bi-hourglass-split me-1\"></i> 正在创建扫描任务...';
 
   try {
-    // 获取或创建组织
     let orgs = await (await fetch('/api/v1/organizations')).json();
     let org = orgs.find(o => o.name === orgName);
     if (!org) {
-      const r = await fetch('/api/v1/organizations', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ name: orgName }),
-      });
+      const r = await fetch('/api/v1/organizations', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name:orgName }) });
       org = await r.json();
     }
 
-    // 创建任务
     const taskRes = await fetch('/api/v1/tasks', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        org_id: org.id,
-        name: `${typeLabel}: ${domain}`,
-        task_type: taskType,
-        target: domain,
-      }),
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ org_id:org.id, name:`${typeLabel}: ${target}`, task_type:taskType, target })
     });
     const task = await taskRes.json();
 
-    statusDiv.className = 'alert alert-success mt-2';
-    statusDiv.innerHTML = `<i class="bi bi-check-circle me-1"></i> 任务已创建! ID: ${task.id}`;
-    statusDiv.style.display = 'block';
     document.getElementById('targetDomain').value = '';
+    document.getElementById('orgName').value = '';
+
+    // 实时轮询任务进度
+    statusDiv.innerHTML = '<div class=\"d-flex align-items-center gap-2\"><span class=\"spinner-border spinner-border-sm\"></span><strong>扫描进行中...</strong> 目标: <code>'+target+'</code> 任务 #'+task.id+'</div><div class=\"progress mt-2\" style=\"height:8px;\"><div class=\"progress-bar progress-bar-striped progress-bar-animated\" id=\"liveProgress\" style=\"width:0%;background:#00d4ff;\"></div></div><div class=\"mt-1\"><small id=\"liveStatus\" class=\"text-info\">初始化...</small></div>';
+
+    // 轮询直到完成
+    let pollCount = 0;
+    const poll = setInterval(async () => {
+      try {
+        const r = await fetch('/api/v1/tasks/'+task.id);
+        const t = await r.json();
+        document.getElementById('liveProgress').style.width = t.progress+'%';
+        document.getElementById('liveStatus').textContent = (t.progress||0)+'% '+(t.result_summary||'扫描中...');
+        pollCount++;
+        if (t.status === 'completed') {
+          clearInterval(poll);
+          statusDiv.className = 'alert alert-success mt-2';
+          statusDiv.innerHTML = '<i class=\"bi bi-check-circle-fill me-1\"></i><strong>扫描完成!</strong> '+ (t.result_summary||'') + ' <a href=\"/tasks\" class=\"btn btn-sm btn-outline-success ms-2\">查看详情</a> <a href=\"/vulns\" class=\"btn btn-sm btn-outline-warning ms-1\">查看漏洞</a>';
+          loadOverview(); loadTasks(); loadAttackSurface();
+          btn.disabled = false; btn.innerHTML = '<i class=\"bi bi-search me-1\"></i> 开始扫描';
+        } else if (t.status === 'failed') {
+          clearInterval(poll);
+          statusDiv.className = 'alert alert-danger mt-2';
+          statusDiv.innerHTML = '<i class=\"bi bi-exclamation-triangle-fill me-1\"></i><strong>扫描失败!</strong> '+ (t.error||'') + ' <a href=\"/tasks\" class=\"btn btn-sm btn-outline-danger ms-2\">查看详情</a>';
+          btn.disabled = false; btn.innerHTML = '<i class=\"bi bi-search me-1\"></i> 开始扫描';
+        } else if (pollCount > 300) { // 5分钟超时
+          clearInterval(poll);
+          statusDiv.className = 'alert alert-warning mt-2';
+          statusDiv.innerHTML = '<i class=\"bi bi-clock me-1\"></i> 扫描超时，请到 <a href=\"/tasks\">任务管理</a> 查看';
+          btn.disabled = false; btn.innerHTML = '<i class=\"bi bi-search me-1\"></i> 开始扫描';
+        }
+      } catch(e) { clearInterval(poll); }
+    }, 2000); // 每2秒轮询
+
     await loadOverview();
     await loadTasks();
   } catch (err) {
     statusDiv.className = 'alert alert-danger mt-2';
-    statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i> 失败: ${err.message}`;
-    statusDiv.style.display = 'block';
-  } finally {
+    statusDiv.innerHTML = '<i class=\"bi bi-exclamation-triangle me-1\"></i> 创建失败: '+err.message;
     btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-search me-1"></i> 开始信息收集';
+    btn.innerHTML = '<i class=\"bi bi-search me-1\"></i> 开始扫描';
   }
 });
 
 loadOverview();
 loadTasks();
 loadAttackSurface();
+loadAttackSurface();
 setInterval(loadOverview, 10000);
-setInterval(loadTasks, 10000);
 setInterval(loadAttackSurface, 15000);
 
 async function loadAttackSurface() {
