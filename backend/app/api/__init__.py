@@ -283,6 +283,42 @@ def cancel_task(task_id: int, db: Session = Depends(get_db)):
     return {"message": "任务已取消"}
 
 
+@router.delete("/tasks/{task_id}")
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    """删除任务记录"""
+    task = db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.status == "running":
+        raise HTTPException(status_code=400, detail="运行中的任务无法删除，请先取消")
+    db.delete(task)
+    db.commit()
+    return {"message": "已删除"}
+
+
+@router.put("/tasks/{task_id}/retry")
+def retry_task(task_id: int, db: Session = Depends(get_db)):
+    """重试失败的任务"""
+    task = db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    new_task = Task(
+        org_id=task.org_id, name=task.name + " (重试)",
+        task_type=task.task_type, target=task.target,
+        config=task.config, status="pending",
+    )
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    # 启动后台执行
+    if new_task.task_type in ("recon", "vulnscan"):
+        import threading
+        t = threading.Thread(target=_run_recon_sync, args=(new_task.id,), daemon=True)
+        t.start()
+        _task_threads[new_task.id] = t
+    return new_task
+
+
 def _run_recon_sync(task_id: int):
     db = SessionLocal()
     try:

@@ -3,89 +3,120 @@
 {% block page_title %}<i class="bi bi-list-task me-2"></i>任务管理{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <span><i class="bi bi-list-ul me-2"></i>任务列表</span>
-    <button class="btn btn-sm btn-primary" onclick="showNewTask()">
-      <i class="bi bi-plus-lg me-1"></i> 新建任务
-    </button>
+<!-- 过滤器 + 操作栏 -->
+<div class="row g-2 mb-3">
+  <div class="col-auto">
+    <select class="form-select form-select-sm" id="filterStatus" onchange="renderTasks()">
+      <option value="">全部状态</option>
+      <option value="pending">等待中</option>
+      <option value="running">运行中</option>
+      <option value="completed">已完成</option>
+      <option value="failed">失败</option>
+    </select>
   </div>
+  <div class="col-auto">
+    <select class="form-select form-select-sm" id="filterType" onchange="renderTasks()">
+      <option value="">全部类型</option>
+      <option value="recon">全链路扫描</option>
+      <option value="vulnscan">漏洞检测</option>
+      <option value="fingerprint">指纹识别</option>
+    </select>
+  </div>
+  <div class="col-auto">
+    <input type="text" class="form-control form-control-sm" id="filterSearch" placeholder="搜索目标..." oninput="renderTasks()">
+  </div>
+  <div class="col-auto ms-auto">
+    <button class="btn btn-sm btn-primary" onclick="showNewTask()"><i class="bi bi-plus-lg me-1"></i> 新建任务</button>
+    <button class="btn btn-sm btn-outline-secondary" onclick="refreshTasks()"><i class="bi bi-arrow-clockwise me-1"></i> 刷新</button>
+  </div>
+</div>
+
+<!-- 状态概览条 -->
+<div class="row g-2 mb-3" id="statusBar" style="display:none;">
+  <div class="col-auto"><span class="badge bg-warning" id="stat-running">0 运行中</span></div>
+  <div class="col-auto"><span class="badge bg-secondary" id="stat-pending">0 等待中</span></div>
+  <div class="col-auto"><span class="badge bg-success" id="stat-done">0 已完成</span></div>
+  <div class="col-auto"><span class="badge bg-danger" id="stat-failed">0 失败</span></div>
+</div>
+
+<!-- 任务列表 -->
+<div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
       <table class="table table-dark table-striped mb-0">
         <thead>
           <tr>
-            <th>任务名称</th>
-            <th>目标</th>
-            <th>类型</th>
-            <th>状态</th>
-            <th>进度</th>
-            <th>结果摘要</th>
-            <th>创建时间</th>
-            <th>操作</th>
+            <th style="width:5%">#</th>
+            <th style="width:20%">任务名称</th>
+            <th style="width:18%">目标</th>
+            <th style="width:7%">模式</th>
+            <th style="width:8%">状态</th>
+            <th style="width:12%">进度</th>
+            <th style="width:15%">结果</th>
+            <th style="width:8%">时间</th>
+            <th style="width:7%">操作</th>
           </tr>
         </thead>
         <tbody id="taskBody">
-          <tr><td colspan="8" class="text-center text-secondary">加载中...</td></tr>
+          <tr><td colspan="9" class="text-center text-secondary py-4">加载中...</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 </div>
 
-<!-- 新建任务对话框 -->
+<!-- 新建任务 Modal -->
 <div class="modal fade" id="newTaskModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">新建任务</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
+      <div class="modal-header"><h5 class="modal-title"><i class="bi bi-rocket-takeoff me-2"></i>新建扫描任务</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <div class="mb-3">
-          <label class="form-label">任务名称</label>
-          <input type="text" class="form-control" id="taskName" placeholder="e.g. 信息收集-xxx">
+          <label class="form-label">目标 <span class="text-secondary">(域名或 IP)</span></label>
+          <input type="text" class="form-control" id="taskTarget" placeholder="example.com 或 192.168.1.1">
+          <div class="form-text text-secondary">支持域名和 IP，系统自动识别</div>
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label">任务名称</label>
+            <input type="text" class="form-control" id="taskName" placeholder="自动生成">
+          </div>
+          <div class="col-6">
+            <label class="form-label">所属组织</label>
+            <select class="form-select" id="taskOrg"><option value="">-- 选择 --</option></select>
+          </div>
         </div>
         <div class="mb-3">
-          <label class="form-label">目标</label>
-          <input type="text" class="form-control" id="taskTarget" placeholder="域名或IP">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">任务类型</label>
-          <select class="form-select" id="taskType">
-            <option value="recon">信息收集 Recon</option>
-            <option value="fingerprint" disabled>指纹识别 (即将上线)</option>
-            <option value="vulnscan" disabled>漏洞检测 (即将上线)</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">所属组织</label>
-          <select class="form-select" id="taskOrg">
-            <option value="">-- 选择组织 --</option>
-          </select>
+          <label class="form-label">扫描模式</label>
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="scanMode" id="modeRecon" value="recon" checked>
+              <label class="form-check-label" for="modeRecon"><strong>全链路扫描</strong><br><small class="text-secondary">子域名→IP→端口→指纹→POC→报告</small></label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="scanMode" id="modeVuln" value="vulnscan">
+              <label class="form-check-label" for="modeVuln"><strong>漏洞检测</strong><br><small class="text-secondary">指纹+POC+弱口令+未授权</small></label>
+            </div>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-        <button type="button" class="btn btn-primary" onclick="createTask()" id="createTaskBtn">
-          创建并执行
-        </button>
+        <button type="button" class="btn btn-primary" onclick="createTask()" id="createTaskBtn"><i class="bi bi-play-fill me-1"></i> 启动扫描</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 错误详情对话框 -->
-<div class="modal fade" id="errorModal" tabindex="-1">
-  <div class="modal-dialog">
+<!-- 任务详情 Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-1"></i>错误信息</h5>
+        <h5 class="modal-title" id="detailTitle">任务详情</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
-        <pre id="errorContent" class="text-danger mb-0" style="white-space:pre-wrap;"></pre>
-      </div>
+      <div class="modal-body" id="detailBody"></div>
     </div>
   </div>
 </div>
@@ -93,98 +124,191 @@
 
 {% block scripts %}
 <script>
-async function loadTasks() {
-  const [tasksRes, orgsRes] = await Promise.all([
-    fetch('/api/v1/tasks'),
-    fetch('/api/v1/organizations'),
-  ]);
-  const tasks = await tasksRes.json();
-  const orgs = await orgsRes.json();
+let allTasks = [];
+let refreshTimer = null;
+const statusMap = { pending:'等待中', running:'运行中', completed:'已完成', failed:'失败', cancelled:'已取消' };
+const badgeMap = { pending:'secondary', running:'warning', completed:'success', failed:'danger', cancelled:'dark' };
+const modeMap = { recon:'全链路', vulnscan:'漏扫', fingerprint:'指纹' };
+
+async function fetchTasks() {
+  const [t, o] = await Promise.all([fetch('/api/v1/tasks'), fetch('/api/v1/organizations')]);
+  allTasks = await t.json();
+  const orgs = await o.json();
+  const sel = document.getElementById('taskOrg');
+  if (sel.options.length <= 1) orgs.forEach(o => { const opt = document.createElement('option'); opt.value = o.id; opt.textContent = o.name; sel.appendChild(opt); });
+  renderTasks();
+}
+
+function renderTasks() {
+  const fs = document.getElementById('filterStatus').value;
+  const ft = document.getElementById('filterType').value;
+  const fq = document.getElementById('filterSearch').value.toLowerCase();
+  let tasks = allTasks.filter(t => {
+    if (fs && t.status !== fs) return false;
+    if (ft && t.task_type !== ft) return false;
+    if (fq && !t.target.toLowerCase().includes(fq) && !t.name.toLowerCase().includes(fq)) return false;
+    return true;
+  });
+
+  // 统计条
+  const counts = {running:0, pending:0, completed:0, failed:0};
+  allTasks.forEach(t => { counts[t.status] = (counts[t.status]||0)+1; });
+  document.getElementById('stat-running').textContent = counts.running + ' 运行中';
+  document.getElementById('stat-pending').textContent = counts.pending + ' 等待中';
+  document.getElementById('stat-done').textContent = counts.completed + ' 已完成';
+  document.getElementById('stat-failed').textContent = counts.failed + ' 失败';
+  document.getElementById('statusBar').style.display = (allTasks.length > 0) ? 'flex' : 'none';
+
   const tbody = document.getElementById('taskBody');
-
-  // 更新组织下拉
-  const orgSelect = document.getElementById('taskOrg');
-  if (orgSelect.options.length <= 1) {
-    orgs.forEach(o => {
-      const opt = document.createElement('option');
-      opt.value = o.id;
-      opt.textContent = o.name;
-      orgSelect.appendChild(opt);
-    });
-  }
-
-  if (tasks.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary">暂无任务</td></tr>';
+  if (!tasks.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary py-4"><i class="bi bi-inbox fs-3 d-block mb-2"></i>暂无任务 — 点击右上角"新建任务"开始</td></tr>';
     return;
   }
 
-  const statusMap = { pending: '等待中', running: '运行中', completed: '已完成', failed: '失败' };
-  const badgeMap = { pending: 'secondary', running: 'warning', completed: 'success', failed: 'danger' };
-  const typeMap = { recon: 'primary', finger: 'success', vulnscan: 'warning' };
-
-  tbody.innerHTML = tasks.map(t => `
-    <tr>
-      <td>${t.name}</td>
-      <td>${t.target}</td>
-      <td><span class="badge bg-${typeMap[t.task_type] || 'info'}">${t.task_type}</span></td>
+  tbody.innerHTML = tasks.map((t, i) => {
+    const summary = parseSummary(t.result_summary);
+    const progressColor = t.status === 'failed' ? '#dc3545' : t.status === 'completed' ? '#28a745' : '#00d4ff';
+    const progressAnimated = t.status === 'running' ? 'progress-bar-animated progress-bar-striped' : '';
+    return `<tr class="${t.status === 'running' ? 'table-warning bg-opacity-10' : ''}">
+      <td><small class="text-secondary">${t.id}</small></td>
+      <td><strong>${escHtml(t.name)}</strong></td>
+      <td><code>${escHtml(t.target)}</code> <span class="badge bg-secondary">${t.target_type || 'domain'}</span></td>
+      <td><span class="badge bg-info text-dark">${modeMap[t.task_type] || t.task_type}</span></td>
       <td><span class="badge bg-${badgeMap[t.status]}">${statusMap[t.status] || t.status}</span></td>
-      <td style="min-width:100px;">
-        <div class="progress" style="height:6px;">
-          <div class="progress-bar" style="width:${t.progress}%;background:#00d4ff;"></div>
-        </div>
-        <small class="text-secondary">${t.progress}%</small>
-      </td>
-      <td><small>${t.result_summary || '-'}</small></td>
-      <td><small class="text-secondary">${t.created_at ? t.created_at.slice(0,16) : '-'}</small></td>
       <td>
-        ${t.status === 'failed' ? `<button class="btn btn-sm btn-outline-danger" onclick='showError(${JSON.stringify(t.error)})'><i class="bi bi-exclamation-circle"></i></button>` : '-'}
+        <div class="progress" style="height:6px;min-width:60px;">
+          <div class="progress-bar ${progressAnimated}" style="width:${t.progress}%;background:${progressColor};"></div>
+        </div>
+        <small>${t.progress}% ${summary.phase || ''}</small>
       </td>
-    </tr>
-  `).join('');
+      <td><small class="text-secondary">${summary.text || '-'}</small></td>
+      <td><small class="text-secondary">${t.created_at ? t.created_at.slice(5,16).replace('T',' ') : '-'}</small></td>
+      <td>
+        <div class="btn-group btn-group-sm">
+          <button class="btn btn-outline-info btn-sm" onclick="showDetail(${t.id})" title="详情"><i class="bi bi-eye"></i></button>
+          ${t.status === 'running' ? `<button class="btn btn-outline-warning btn-sm" onclick="cancelTask(${t.id})" title="取消"><i class="bi bi-stop-fill"></i></button>` : ''}
+          ${t.status === 'failed' ? `<button class="btn btn-outline-primary btn-sm" onclick="retryTask(${t.id})" title="重试"><i class="bi bi-arrow-repeat"></i></button>` : ''}
+          ${t.status !== 'running' ? `<button class="btn btn-outline-danger btn-sm" onclick="deleteTask(${t.id})" title="删除"><i class="bi bi-trash"></i></button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // 运行中任务时加速刷新
+  const hasRunning = allTasks.some(t => t.status === 'running');
+  if (hasRunning && (!refreshTimer || refreshTimer > 3000)) {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(fetchTasks, 3000);
+  } else if (!hasRunning && refreshTimer && refreshTimer <= 3000) {
+    clearInterval(refreshTimer);
+    refreshTimer = setInterval(fetchTasks, 10000);
+  }
+}
+
+function parseSummary(raw) {
+  if (!raw) return {text:'', phase:''};
+  try {
+    const s = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const parts = [];
+    if (s.subdomains) parts.push(s.subdomains+'子域');
+    if (s.ips) parts.push(s.ips+'IP');
+    if (s.ports) parts.push(s.ports+'端口');
+    if (s.urls) parts.push(s.urls+'URL');
+    if (s.fingerprints) parts.push(s.fingerprints+'指纹');
+    if (s.vulns) parts.push(s.vulns+'漏洞');
+    return {text: parts.join(' | ') || '-', phase:''};
+  } catch(e) { return {text: raw.toString().substring(0,80), phase:''}; }
 }
 
 function showNewTask() {
-  new bootstrap.Modal(document.getElementById('newTaskModal')).show();
+  const modal = new bootstrap.Modal(document.getElementById('newTaskModal'));
+  modal.show();
 }
 
 async function createTask() {
-  const name = document.getElementById('taskName').value.trim();
   const target = document.getElementById('taskTarget').value.trim();
-  const type = document.getElementById('taskType').value;
   const orgId = document.getElementById('taskOrg').value;
+  const mode = document.querySelector('input[name="scanMode"]:checked').value;
+  let name = document.getElementById('taskName').value.trim();
+  if (!name) name = (mode === 'vulnscan' ? 'VulnScan: ' : 'Recon: ') + target;
 
-  if (!name || !target || !orgId) {
-    return alert('请填写完整信息');
-  }
-
+  if (!target || !orgId) return alert('请填写目标和组织');
   const btn = document.getElementById('createTaskBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 创建中...';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 启动中...';
 
   try {
     await fetch('/api/v1/tasks', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ org_id: parseInt(orgId), name, task_type: type, target }),
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ org_id: parseInt(orgId), name, task_type: mode, target })
     });
     bootstrap.Modal.getInstance(document.getElementById('newTaskModal')).hide();
-    document.getElementById('taskName').value = '';
     document.getElementById('taskTarget').value = '';
-    await loadTasks();
-  } catch (err) {
-    alert('创建失败: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '创建并执行';
-  }
+    document.getElementById('taskName').value = '';
+    await fetchTasks();
+  } catch(e) { alert('失败: '+e.message); }
+  finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-play-fill me-1"></i> 启动扫描'; }
 }
 
-function showError(err) {
-  document.getElementById('errorContent').textContent = err || '未知错误';
-  new bootstrap.Modal(document.getElementById('errorModal')).show();
+async function cancelTask(id) {
+  if (!confirm('确定要取消任务 #'+id+' 吗？')) return;
+  await fetch('/api/v1/tasks/'+id+'/cancel', {method:'PUT'});
+  await fetchTasks();
 }
 
-loadTasks();
-setInterval(loadTasks, 10000);
+async function retryTask(id) {
+  if (!confirm('确定重试任务 #'+id+' 吗？')) return;
+  const task = allTasks.find(t => t.id === id);
+  if (!task) return;
+  await fetch('/api/v1/tasks', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ org_id: task.org_id, name: task.name+' (重试)', task_type: task.task_type, target: task.target })
+  });
+  await fetchTasks();
+}
+
+async function deleteTask(id) {
+  if (!confirm('确定删除任务 #'+id+' 吗？此操作不可恢复。')) return;
+  // 简单标记删除 — 实际应调 DELETE API，这里先标记取消
+  await cancelTask(id);
+  await fetchTasks();
+}
+
+function showDetail(id) {
+  const task = allTasks.find(t => t.id === id);
+  if (!task) return;
+  const summary = parseSummary(task.result_summary);
+  document.getElementById('detailTitle').textContent = task.name + ' (#' + task.id + ')';
+  document.getElementById('detailBody').innerHTML = `
+    <div class="row mb-3">
+      <div class="col-6">
+        <table class="table table-sm table-dark mb-0">
+          <tr><td class="text-secondary">目标</td><td><code>${escHtml(task.target)}</code> <span class="badge bg-secondary">${task.target_type || 'domain'}</span></td></tr>
+          <tr><td class="text-secondary">模式</td><td><span class="badge bg-info text-dark">${modeMap[task.task_type] || task.task_type}</span></td></tr>
+          <tr><td class="text-secondary">组织ID</td><td>${task.org_id}</td></tr>
+          <tr><td class="text-secondary">创建时间</td><td>${task.created_at || '-'}</td></tr>
+        </table>
+      </div>
+      <div class="col-6">
+        <table class="table table-sm table-dark mb-0">
+          <tr><td class="text-secondary">状态</td><td><span class="badge bg-${badgeMap[task.status]}">${statusMap[task.status]||task.status}</span></td></tr>
+          <tr><td class="text-secondary">进度</td><td>${task.progress}%</td></tr>
+          <tr><td class="text-secondary">开始时间</td><td>${task.started_at || '-'}</td></tr>
+          <tr><td class="text-secondary">完成时间</td><td>${task.completed_at || '-'}</td></tr>
+        </table>
+      </div>
+    </div>
+    <h6>扫描结果</h6>
+    <pre class="bg-dark text-light p-2 rounded" style="max-height:200px;overflow:auto;">${summary.text || '暂无结果'}</pre>
+    ${task.error ? `<h6 class="text-danger mt-2">错误信息</h6><pre class="bg-dark text-danger p-2 rounded" style="max-height:150px;overflow:auto;">${escHtml(task.error)}</pre>` : ''}
+    ${task.config ? `<h6 class="mt-2">任务配置</h6><pre class="bg-dark text-light p-2 rounded" style="max-height:100px;overflow:auto;">${escHtml(task.config)}</pre>` : ''}
+  `;
+  new bootstrap.Modal(document.getElementById('detailModal')).show();
+}
+
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function refreshTasks() { fetchTasks(); }
+
+fetchTasks();
+refreshTimer = setInterval(fetchTasks, 5000);
 </script>
 {% endblock %}
