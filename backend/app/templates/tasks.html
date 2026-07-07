@@ -268,8 +268,7 @@ async function retryTask(id) {
 
 async function deleteTask(id) {
   if (!confirm('确定删除任务 #'+id+' 吗？此操作不可恢复。')) return;
-  // 简单标记删除 — 实际应调 DELETE API，这里先标记取消
-  await cancelTask(id);
+  await fetch('/api/v1/tasks/'+id, {method:'DELETE'});
   await fetchTasks();
 }
 
