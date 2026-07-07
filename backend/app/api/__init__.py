@@ -270,55 +270,73 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 
 @router.get("/tasks/{task_id}/live")
 def get_task_live(task_id: int, db: Session = Depends(get_db)):
-    """获取任务实时资产详情（用于扫描中轮询展示）"""
+    """获取任务实时资产详情（仅返回该任务目标的资产）"""
     task = db.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
 
     org_id = task.org_id
-    result = {"task_id": task_id, "status": task.status, "progress": task.progress}
+    target = task.target
+    result = {"task_id": task_id, "status": task.status, "progress": task.progress, "target": target}
 
-    # 子域名（带分类优先级，高优先在前）
-    subs = db.query(Subdomain).join(Domain).filter(Domain.org_id == org_id)\
-        .order_by(Subdomain.priority.desc(), Subdomain.first_seen.desc()).limit(100).all()
+    # 找到该任务对应的主域名记录
+    domain_obj = db.query(Domain).filter(
+        Domain.org_id == org_id, Domain.domain == target
+    ).first()
+
+    # 仅查询该域名下的子域名
+    if domain_obj:
+        subs = db.query(Subdomain).filter(Subdomain.domain_id == domain_obj.id)\
+            .order_by(Subdomain.priority.desc(), Subdomain.first_seen.desc()).limit(100).all()
+    else:
+        subs = []
     result["subdomains"] = [
         {"subdomain": s.subdomain, "ip": s.ip, "category": s.category or "other",
          "priority": s.priority or 1, "source": s.source}
         for s in subs
     ]
 
-    # IP + 端口
-    ips = db.query(IPAddress).order_by(IPAddress.first_seen.desc()).limit(50).all()
-    ip_list = []
+    # IP + 端口（仅该域名的子域名解析出的 IP）
     subdomain_ips = {s.ip for s in subs if s.ip}
-    for ip in ips:
-        if ip.ip in subdomain_ips or not subdomain_ips:
-            ports = db.query(Port).filter(Port.ip_id == ip.id).order_by(Port.port).all()
-            ip_list.append({
-                "ip": ip.ip, "is_cdn": ip.is_cdn, "country": ip.country,
-                "ports": [{"port": p.port, "service": p.service, "banner": (p.banner or "")[:100]} for p in ports[:20]]
-            })
+    ip_list = []
+    if subdomain_ips:
+        db_ips = db.query(IPAddress).filter(IPAddress.ip.in_(subdomain_ips)).all()
+        ip_map = {ip.ip: ip for ip in db_ips}
+        for ip_str in subdomain_ips:
+            ip_obj = ip_map.get(ip_str)
+            if ip_obj:
+                ports = db.query(Port).filter(Port.ip_id == ip_obj.id).order_by(Port.port).all()
+                ip_list.append({
+                    "ip": ip_str, "is_cdn": ip_obj.is_cdn, "country": ip_obj.country,
+                    "ports": [{"port": p.port, "service": p.service, "banner": (p.banner or "")[:100]} for p in ports[:20]]
+                })
     result["ips"] = ip_list[:30]
 
-    # URL
-    urls = db.query(URL).order_by(URL.first_seen.desc()).limit(50).all()
-    url_org_ids = set()
-    for s in subs:
-        url_org_ids.add(s.subdomain)
-    result["urls"] = [
-        {"url": u.url, "status_code": u.status_code, "title": u.title, "tech_stack": u.tech_stack}
-        for u in urls if any(u.host == s.subdomain or u.host.endswith("." + task.target) for s in subs)
-    ][:30] if subs else [{"url": u.url, "status_code": u.status_code, "title": u.title} for u in urls[:20]]
+    # URL（仅该域名相关）
+    if subs:
+        subdomain_set = {s.subdomain for s in subs}
+        urls = db.query(URL).order_by(URL.first_seen.desc()).limit(200).all()
+        result["urls"] = [
+            {"url": u.url, "status_code": u.status_code, "title": u.title, "tech_stack": u.tech_stack}
+            for u in urls if u.host in subdomain_set or u.host.endswith("." + target)
+        ][:30]
+    else:
+        result["urls"] = []
 
-    # 指纹
-    fps = db.query(Fingerprint).order_by(Fingerprint.value_level.desc()).limit(100).all()
-    url_map = {u.id: u.url for u in urls}
-    result["fingerprints"] = [
-        {"name": f.name, "category": f.category, "value": f.value_level, "url": url_map.get(f.url_id, "")}
-        for f in fps if f.url_id in url_map
-    ][:30]
+    # 指纹（仅该域名的 URL）
+    if result["urls"]:
+        url_set = {u["url"] for u in result["urls"]}
+        fps = db.query(Fingerprint).order_by(Fingerprint.value_level.desc()).limit(200).all()
+        url_objs = db.query(URL).filter(URL.url.in_(url_set)).all()
+        url_id_map = {uo.id: uo.url for uo in url_objs}
+        result["fingerprints"] = [
+            {"name": f.name, "category": f.category, "value": f.value_level, "url": url_id_map.get(f.url_id, "")}
+            for f in fps if f.url_id in url_id_map
+        ][:30]
+    else:
+        result["fingerprints"] = []
 
-    # 漏洞
+    # 漏洞（仅该 org）
     vulns = db.query(Vulnerability).filter(Vulnerability.org_id == org_id)\
         .order_by(Vulnerability.severity.desc()).limit(50).all()
     result["vulnerabilities"] = [
