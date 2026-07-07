@@ -108,27 +108,31 @@ class VulnOrchestrator:
 
     async def scan_url_with_poc(self, url: str, headers: dict = None,
                                  body: str = "", status_code: int = 200,
-                                 max_pocs: int = 10) -> Dict:
+                                 max_pocs: int = 10, all_pocs: bool = False) -> Dict:
         """全链路：指纹识别 → POC 匹配 → POC 执行"""
         result = await self.scan_url(url, headers, body, status_code)
-        poc_ids = result.get("poc_matches", [])
 
-        if not poc_ids:
-            return result
+        if all_pocs:
+            # 全量模式：跑所有 POC，按严重度排序
+            all_ids = list(self.poc_engine.pocs.keys())
+            priority = [p for p in all_ids if self.poc_engine.pocs[p].severity in ("critical","high")]
+            normal = [p for p in all_ids if self.poc_engine.pocs[p].severity not in ("critical","high")]
+            pocs_to_run = (priority + normal)[:max_pocs]
+        else:
+            poc_ids = result.get("poc_matches", [])
+            if not poc_ids:
+                return result
+            priority_pocs = []
+            normal_pocs = []
+            for pid in poc_ids:
+                poc = self.poc_engine.pocs.get(pid)
+                if poc and poc.severity in ["critical", "high"]:
+                    priority_pocs.append(pid)
+                else:
+                    normal_pocs.append(pid)
+            pocs_to_run = (priority_pocs + normal_pocs)[:max_pocs]
 
-        # 优先执行高危 POC
-        priority_pocs = []
-        normal_pocs = []
-        for pid in poc_ids:
-            poc = self.poc_engine.pocs.get(pid)
-            if poc and poc.severity in ["critical", "high"]:
-                priority_pocs.append(pid)
-            else:
-                normal_pocs.append(pid)
-
-        pocs_to_run = (priority_pocs + normal_pocs)[:max_pocs]
-
-        poc_results = await self.poc_engine.execute_batch(url, pocs_to_run, concurrency=3)
+        poc_results = await self.poc_engine.execute_batch(url, pocs_to_run, concurrency=5)
         result["poc_results"] = poc_results
         result["vulnerable_count"] = sum(1 for p in poc_results if p.get("vulnerable"))
 

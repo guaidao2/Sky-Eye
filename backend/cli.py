@@ -188,8 +188,10 @@ def fingerprint(
 @cli.command()
 def vulnscan(
     url: str = typer.Argument(..., help="目标URL"),
+    all_pocs: bool = typer.Option(False, "--all", "-a", help="全量POC模式，不依赖指纹匹配"),
+    max_pocs: int = typer.Option(50, "--max", "-m", help="最大POC数量"),
 ):
-    """对单个 URL 执行完整漏洞检测（指纹+POC+未授权）"""
+    """对单个 URL 执行完整漏洞检测（指纹+POC+未授权），--all 跑全量POC"""
     console.print(f"[bold cyan]🧪 漏洞检测[/] {url}")
     async def _run():
         import httpx, re
@@ -205,7 +207,8 @@ def vulnscan(
             return None
         from app.modules.vulnscan.orchestrator import VulnOrchestrator
         orch = VulnOrchestrator()
-        res = await orch.scan_url_with_poc(url, headers=dict(r.headers), body=body, status_code=st)
+        res = await orch.scan_url_with_poc(url, headers=dict(r.headers), body=body,
+                                            status_code=st, all_pocs=all_pocs, max_pocs=max_pocs)
         return (st, tl, sv, res)
     data = asyncio.run(_run())
     if not data: return
