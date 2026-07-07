@@ -192,10 +192,26 @@ def vulnscan(
     """对单个 URL 执行完整漏洞检测（指纹+POC+未授权）"""
     console.print(f"[bold cyan]🧪 漏洞检测[/] {url}")
     async def _run():
+        import httpx, re
+        try:
+            async with httpx.AsyncClient(timeout=10, verify=False) as c:
+                r = await c.get(url, follow_redirects=True)
+                st, tl, sv = r.status_code, '', r.headers.get('server','')
+                m = re.search(r'<title[^>]*>(.*?)</title>', r.text, re.I)
+                if m: tl = m.group(1).strip()[:100]
+                body = r.text[:50000]
+        except Exception as e:
+            console.print(f'[red]请求失败: {type(e).__name__}[/]')
+            return None
         from app.modules.vulnscan.orchestrator import VulnOrchestrator
         orch = VulnOrchestrator()
-        return await orch.scan_url_with_poc(url)
-    result = asyncio.run(_run())
+        res = await orch.scan_url_with_poc(url, headers=dict(r.headers), body=body, status_code=st)
+        return (st, tl, sv, res)
+    data = asyncio.run(_run())
+    if not data: return
+    status, title, server, result = data
+
+    console.print(f"  状态: {status} | 标题: {title or '(无)'} | Server: {server or '(无)'}")
     fps = result.get("fingerprints", [])
     pocs = result.get("poc_results", [])
     vulns = [p for p in pocs if p.get("vulnerable")]
