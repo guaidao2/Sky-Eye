@@ -40,7 +40,7 @@ class FingerprintHubAdapter:
         return len(self.rules)
 
     def match(self, url: str, status_code: int, headers: dict,
-              body: str = "", favicon_hash: str = None) -> List[Dict]:
+              body: str = "", favicon_hash: str = None, min_confidence: float = 0.15) -> List[Dict]:
         """执行指纹匹配（兼容现有引擎接口）"""
         if not self._loaded:
             self.load()
@@ -48,11 +48,14 @@ class FingerprintHubAdapter:
         results = []
 
         for rule in self.rules:
-            matched, matched_rules = self._match_rule(rule, url, headers, body, favicon_hash)
-            if matched:
+            matched_rules, total_matchers, matched_count = self._match_rule(rule, url, headers, body, favicon_hash)
+            if matched_rules:
                 info = rule.get("info", {})
                 metadata = info.get("metadata", {})
                 tags = info.get("tags", "").split(",")
+                confidence = matched_count / min(total_matchers, 5) if total_matchers > 0 else 1.0
+                if confidence < min_confidence:
+                    continue  # 置信度不够，跳过
 
                 results.append({
                     "name": info.get("name", rule.get("id", "Unknown")),
@@ -60,6 +63,7 @@ class FingerprintHubAdapter:
                     "value": self._severity_value(info.get("severity", "info")),
                     "tags": [t.strip() for t in tags if t.strip()],
                     "matched_rules": matched_rules,
+                    "confidence": round(confidence, 2),
                     "source": "fingerprinthub",
                 })
 
@@ -67,12 +71,15 @@ class FingerprintHubAdapter:
 
     def _match_rule(self, rule: dict, url: str, headers: dict,
                     body: str, favicon_hash: str) -> tuple:
-        """匹配单条规则"""
+        """匹配单条规则, 返回 (matched_rules, total_matchers, matched_count)"""
         http_blocks = rule.get("http", [])
         all_matched = []
+        total_matchers = 0
 
         for http_block in http_blocks:
-            for matcher in http_block.get("matchers", []):
+            matchers = http_block.get("matchers", [])
+            total_matchers += len(matchers)
+            for matcher in matchers:
                 mtype = matcher.get("type", "word")
                 part = matcher.get("part", "body")
                 words = matcher.get("words", [])
@@ -119,7 +126,7 @@ class FingerprintHubAdapter:
                         except re.error:
                             pass
 
-        return bool(all_matched), all_matched
+        return all_matched, total_matchers, len(all_matched)
 
     def _categorize(self, tags: list) -> str:
         """标签转分类"""

@@ -137,6 +137,7 @@ def recon(
 @cli.command()
 def fingerprint(
     url: str = typer.Argument(..., help="目标URL"),
+    min_conf: float = typer.Option(0.4, "--min-confidence", "-c", help="最低置信度 0-1"),
 ):
     """对单个 URL 执行指纹识别"""
     console.print(f"[bold cyan]🔍 指纹识别[/] {url}")
@@ -149,8 +150,14 @@ def fingerprint(
                 m = re.search(r'<title[^>]*>(.*?)</title>', r.text, re.I)
                 if m: tl = m.group(1).strip()[:100]
                 body = r.text[:50000]
+        except httpx.ConnectError:
+            console.print('[red]无法连接目标[/]')
+            return None
+        except httpx.TimeoutException:
+            console.print('[red]请求超时[/]')
+            return None
         except Exception as e:
-            console.print(f'[red]请求失败: {e}[/]')
+            console.print(f'[red]请求失败: {type(e).__name__}: {e}[/]')
             return None
         from app.modules.vulnscan.orchestrator import VulnOrchestrator
         orch = VulnOrchestrator()
@@ -161,17 +168,21 @@ def fingerprint(
     status, title, server, result = data
 
     console.print(f'  状态: {status} | 标题: {title or "(无)"} | Server: {server or "(无)"}')
-    fps = result.get("fingerprints", [])
+    fps = [f for f in result.get("fingerprints", []) if f.get("confidence", 1.0) >= min_conf]
     if fps:
-        table = Table(title=f"指纹识别结果")
-        table.add_column("产品", style="cyan"); table.add_column("分类", style="yellow")
-        table.add_column("价值", style="red"); table.add_column("标签")
+        # 按置信度排序
+        fps.sort(key=lambda x: x.get("confidence", 0), reverse=True)
+        table = Table(title=f"指纹识别结果 (最低置信度: {min_conf})")
+        table.add_column("产品", style="cyan"); table.add_column("置信度", style="green")
+        table.add_column("分类", style="yellow"); table.add_column("价值", style="red"); table.add_column("标签")
         for f in fps:
-            table.add_row(f["name"], f.get("category",""), f"P{f.get('value',2)}",
-                          ",".join(f.get("tags",[]))[:60])
+            conf = f.get("confidence", 1.0)
+            conf_style = "green" if conf >= 0.8 else ("yellow" if conf >= 0.5 else "red")
+            table.add_row(f["name"], f"[{conf_style}]{conf:.0%}[/]", f.get("category",""),
+                          f"P{f.get('value',2)}", ",".join(f.get("tags",[]))[:50])
         console.print(table)
     else:
-        console.print("[yellow]未识别到指纹[/] [dim](可尝试 vulnscan 做深度检测)[/]")
+        console.print(f"[yellow]未识别到指纹[/] [dim](置信度阈值: {min_conf}, 可降低 --min-confidence 重试)[/]")
 
 
 @cli.command()
