@@ -280,6 +280,10 @@ class POCEngine:
 
         # 关键字匹配
         if words:
+            generic = {"http","https","ok","true","false","null","none","get","post","www"}
+            words = [w for w in words if w and len(w) > 2 and w.lower() not in generic]
+            if not words:
+                return False
             flags = re.IGNORECASE if case_insensitive else 0
             if cond == "and":
                 if all(w.lower() in source.lower() if case_insensitive else w in source for w in words):
