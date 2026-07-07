@@ -77,6 +77,14 @@ def _migrate_columns():
             cursor.execute("ALTER TABLE tasks ADD COLUMN target_type VARCHAR(20) DEFAULT 'domain'")
             print("  [DB] 已补全列: tasks.target_type")
 
+        # subdomains 表
+        cursor.execute("PRAGMA table_info(subdomains)")
+        sd_cols = [row[1] for row in cursor.fetchall()]
+        for col_name, col_type in [("category", "VARCHAR(50)"), ("priority", "INTEGER DEFAULT 1")]:
+            if col_name not in sd_cols:
+                cursor.execute(f"ALTER TABLE subdomains ADD COLUMN {col_name} {col_type}")
+                print(f"  [DB] 已补全列: subdomains.{col_name}")
+
         conn.commit()
         conn.close()
     except Exception as e:

@@ -34,6 +34,8 @@ class Subdomain(Base):
     cname = Column(String(255), nullable=True, comment="CNAME记录")
     status = Column(String(20), default="unknown", comment="状态")
     source = Column(String(50), nullable=True, comment="发现来源")
+    category = Column(String(50), nullable=True, comment="分类: admin/api/dev/cdn/oss/vpn/mail/db/monitor/other")
+    priority = Column(Integer, default=1, comment="优先级 1-5, 5最高")
     first_seen = Column(DateTime, server_default=func.now(), comment="首次发现")
     last_seen = Column(DateTime, server_default=func.now(), onupdate=func.now(), comment="最后发现")
 

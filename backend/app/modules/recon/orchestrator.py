@@ -130,11 +130,34 @@ class ReconOrchestrator:
             if sd not in subdomains:
                 subdomains.append(sd)
         summary["subdomains"] = len(subdomains)
+
+        # Phase 1.2: 子域名智能分类评分
+        from app.modules.recon.subdomain_analyzer import SubdomainAnalyzer
+        analyzer = SubdomainAnalyzer()
+        analyzed = analyzer.analyze_batch(subdomains)
+        attack_surface = analyzer.get_attack_surface_summary(analyzed)
+        summary["attack_surface"] = attack_surface
+        # 更新数据库中的分类和优先级
+        for a in analyzed:
+            db_sd = session.query(Subdomain).filter(
+                Subdomain.domain_id == domain_obj.id, Subdomain.subdomain == a["subdomain"]
+            ).first()
+            if db_sd:
+                db_sd.category = a["category"]
+                db_sd.priority = a["priority"]
+        session.commit()
+
         for sd in subdomains:
             if not session.query(Subdomain).filter(
                 Subdomain.domain_id == domain_obj.id, Subdomain.subdomain == sd
             ).first():
-                session.add(Subdomain(domain_id=domain_obj.id, subdomain=sd, source="auto"))
+                # 查找分类信息
+                info = next((a for a in analyzed if a["subdomain"] == sd), None)
+                session.add(Subdomain(
+                    domain_id=domain_obj.id, subdomain=sd, source="auto",
+                    category=info["category"] if info else "other",
+                    priority=info["priority"] if info else 1,
+                ))
         session.commit()
 
         # Phase 1.5: CDN 穿透

@@ -75,6 +75,17 @@
   <div class="col-auto"><span class="badge bg-secondary">低危 - 通用服务</span></div>
 </div>
 
+<!-- 攻击面速览 -->
+<div class="card mb-4" id="attackSurfaceCard" style="display:none;">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-bullseye me-2"></i>攻击面速览 — 高价值子域名</span>
+    <small id="attackSummary" class="text-secondary"></small>
+  </div>
+  <div class="card-body p-2">
+    <div class="row g-1" id="attackSurfaceGrid"></div>
+  </div>
+</div>
+
 <!-- 快速开始 -->
 <div class="card mb-4">
   <div class="card-header"><i class="bi bi-rocket-takeoff me-2"></i>快速开始 — 支持域名或 IP</div>
@@ -237,8 +248,47 @@ document.getElementById('reconForm').addEventListener('submit', async (e) => {
 
 loadOverview();
 loadTasks();
-// 每 10 秒刷新
+loadAttackSurface();
 setInterval(loadOverview, 10000);
 setInterval(loadTasks, 10000);
+setInterval(loadAttackSurface, 15000);
+
+async function loadAttackSurface() {
+  try {
+    const res = await fetch('/api/v1/tasks');
+    const tasks = await res.json();
+    const recent = tasks.filter(t => t.status === 'completed');
+    if (!recent.length) return;
+    let surface = null;
+    for (const t of recent) {
+      try { const s = typeof t.result_summary === 'string' ? JSON.parse(t.result_summary) : t.result_summary;
+        if (s && s.attack_surface && s.attack_surface.high_value && s.attack_surface.high_value.length) {
+          surface = s.attack_surface; break;
+        }
+      } catch(e) {}
+    }
+    if (!surface || !surface.high_value || !surface.high_value.length) return;
+    document.getElementById('attackSurfaceCard').style.display = 'block';
+    document.getElementById('attackSummary').textContent =
+      surface.total + ' 子域名 | ' + surface.high_value_count + ' 高价值';
+    const catColors = {admin:'danger',auth:'danger',devops:'warning',api:'info',dev:'warning',
+      vpn:'primary',db:'warning',monitor:'info',oa:'secondary',pay:'success'};
+    const catNames = {admin:'管理后台',auth:'认证',devops:'DevOps',api:'API',dev:'开发测试',
+      vpn:'VPN',db:'数据库',monitor:'监控',oa:'OA',pay:'支付'};
+    let html = surface.high_value.slice(0, 24).map(s => {
+      const c = catColors[s.category]||'secondary', n = catNames[s.category]||s.category;
+      return '<div class=\"col-auto\"><span class=\"badge bg-'+c+' m-1\" style=\"font-size:0.82rem;cursor:pointer;\" title=\"'+
+             s.label+' | 优先级P'+s.priority+'\">'+s.subdomain+' <small>('+n+')</small></span></div>';
+    }).join('');
+    if (surface.by_category) {
+      html += '<div class=\"col-12 mt-2 small text-secondary\">分类统计: ';
+      Object.entries(surface.by_category).sort((a,b)=>b[1]-a[1]).slice(0,8).forEach(([cat,cnt])=> {
+        html += '<span class=\"me-2\">'+(catNames[cat]||cat)+': <b>'+cnt+'</b></span>';
+      });
+      html += '</div>';
+    }
+    document.getElementById('attackSurfaceGrid').innerHTML = html;
+  } catch(e) {}
+}
 </script>
 {% endblock %}
