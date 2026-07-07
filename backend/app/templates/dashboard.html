@@ -233,10 +233,54 @@ document.getElementById('reconForm').addEventListener('submit', async (e) => {
     let pollCount = 0;
     const poll = setInterval(async () => {
       try {
-        const r = await fetch('/api/v1/tasks/'+task.id);
-        const t = await r.json();
+        const [tr, lr] = await Promise.all([
+          fetch('/api/v1/tasks/'+task.id),
+          fetch('/api/v1/tasks/'+task.id+'/live')
+        ]);
+        const t = await tr.json();
+        const live = await lr.json();
         document.getElementById('liveProgress').style.width = t.progress+'%';
-        document.getElementById('liveStatus').textContent = (t.progress||0)+'% '+(t.result_summary||'扫描中...');
+
+        // 构建实时资产展示
+        const c = live.counts || {};
+        let liveHtml = '<div class=\"row g-2 mt-2\">';
+        // 子域名
+        liveHtml += '<div class=\"col-md-6\"><div class=\"card bg-dark border-secondary\"><div class=\"card-header py-1 px-2 small\">🌐 子域名 <span class=\"badge bg-info float-end\">'+(c.subdomains||0)+'</span></div><div class=\"card-body p-1\" style=\"max-height:120px;overflow-y:auto;\">';
+        if (live.subdomains && live.subdomains.length) {
+          const catColors = {admin:'danger',auth:'danger',devops:'warning',api:'info',dev:'warning',vpn:'primary',db:'warning',monitor:'info'};
+          liveHtml += live.subdomains.slice(0,20).map(s =>
+            '<span class=\"badge bg-'+(s.priority>=5?'danger':s.priority>=4?'warning':'secondary')+' m-1\" style=\"font-size:0.75rem;\" title=\"'+(s.category||'')+' P'+s.priority+'\">'+s.subdomain+'</span>'
+          ).join('');
+        } else { liveHtml += '<small class=\"text-secondary\">等待发现...</small>'; }
+        liveHtml += '</div></div></div>';
+        // IP/端口
+        liveHtml += '<div class=\"col-md-6\"><div class=\"card bg-dark border-secondary\"><div class=\"card-header py-1 px-2 small\">🔌 IP/端口 <span class=\"badge bg-info float-end\">'+(c.ips||0)+'</span></div><div class=\"card-body p-1\" style=\"max-height:120px;overflow-y:auto;\">';
+        if (live.ips && live.ips.length) {
+          live.ips.slice(0,10).forEach(ip => {
+            const portStr = (ip.ports||[]).slice(0,6).map(p=>p.port+'/'+(p.service||'?')).join(' ');
+            liveHtml += '<div class=\"small mb-1\"><code>'+ip.ip+'</code>'+(ip.is_cdn?' <span class=\"badge bg-warning\">CDN</span>':'')+' <span class=\"text-secondary\">'+portStr+'</span></div>';
+          });
+        } else { liveHtml += '<small class=\"text-secondary\">等待扫描...</small>'; }
+        liveHtml += '</div></div></div>';
+        // URL
+        liveHtml += '<div class=\"col-md-6\"><div class=\"card bg-dark border-secondary\"><div class=\"card-header py-1 px-2 small\">🌍 存活URL <span class=\"badge bg-info float-end\">'+(c.urls||0)+'</span></div><div class=\"card-body p-1\" style=\"max-height:100px;overflow-y:auto;\">';
+        if (live.urls && live.urls.length) {
+          liveHtml += live.urls.slice(0,10).map(u =>
+            '<div class=\"small\"><span class=\"badge bg-'+(u.status_code===200?'success':'warning')+'\">'+u.status_code+'</span> <code class=\"text-secondary\">'+u.url.substring(0,60)+'</code> '+(u.title||'')+'</div>'
+          ).join('');
+        } else { liveHtml += '<small class=\"text-secondary\">等待探测...</small>'; }
+        liveHtml += '</div></div></div>';
+        // 漏洞
+        liveHtml += '<div class=\"col-md-6\"><div class=\"card bg-dark border-secondary\"><div class=\"card-header py-1 px-2 small\">⚠️ 漏洞 <span class=\"badge bg-danger float-end\">'+(c.vulnerabilities||0)+'</span></div><div class=\"card-body p-1\" style=\"max-height:100px;overflow-y:auto;\">';
+        if (live.vulnerabilities && live.vulnerabilities.length) {
+          liveHtml += live.vulnerabilities.slice(0,8).map(v =>
+            '<div class=\"small\"><span class=\"badge bg-'+(v.severity==='critical'||v.severity==='high'?'danger':'warning')+'\">'+v.severity+'</span> '+v.name+'</div>'
+          ).join('');
+        } else { liveHtml += '<small class=\"text-secondary\">等待检测...</small>'; }
+        liveHtml += '</div></div></div>';
+        liveHtml += '</div>';
+
+        document.getElementById('liveStatus').innerHTML = (t.progress||0)+'% — '+(t.result_summary||'扫描中...') + liveHtml;
         pollCount++;
         if (t.status === 'completed') {
           clearInterval(poll);

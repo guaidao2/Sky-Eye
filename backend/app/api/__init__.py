@@ -268,6 +268,73 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
     return task
 
 
+@router.get("/tasks/{task_id}/live")
+def get_task_live(task_id: int, db: Session = Depends(get_db)):
+    """获取任务实时资产详情（用于扫描中轮询展示）"""
+    task = db.get(Task, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+
+    org_id = task.org_id
+    result = {"task_id": task_id, "status": task.status, "progress": task.progress}
+
+    # 子域名（带分类优先级，高优先在前）
+    subs = db.query(Subdomain).join(Domain).filter(Domain.org_id == org_id)\
+        .order_by(Subdomain.priority.desc(), Subdomain.first_seen.desc()).limit(100).all()
+    result["subdomains"] = [
+        {"subdomain": s.subdomain, "ip": s.ip, "category": s.category or "other",
+         "priority": s.priority or 1, "source": s.source}
+        for s in subs
+    ]
+
+    # IP + 端口
+    ips = db.query(IPAddress).order_by(IPAddress.first_seen.desc()).limit(50).all()
+    ip_list = []
+    subdomain_ips = {s.ip for s in subs if s.ip}
+    for ip in ips:
+        if ip.ip in subdomain_ips or not subdomain_ips:
+            ports = db.query(Port).filter(Port.ip_id == ip.id).order_by(Port.port).all()
+            ip_list.append({
+                "ip": ip.ip, "is_cdn": ip.is_cdn, "country": ip.country,
+                "ports": [{"port": p.port, "service": p.service, "banner": (p.banner or "")[:100]} for p in ports[:20]]
+            })
+    result["ips"] = ip_list[:30]
+
+    # URL
+    urls = db.query(URL).order_by(URL.first_seen.desc()).limit(50).all()
+    url_org_ids = set()
+    for s in subs:
+        url_org_ids.add(s.subdomain)
+    result["urls"] = [
+        {"url": u.url, "status_code": u.status_code, "title": u.title, "tech_stack": u.tech_stack}
+        for u in urls if any(u.host == s.subdomain or u.host.endswith("." + task.target) for s in subs)
+    ][:30] if subs else [{"url": u.url, "status_code": u.status_code, "title": u.title} for u in urls[:20]]
+
+    # 指纹
+    fps = db.query(Fingerprint).order_by(Fingerprint.value_level.desc()).limit(100).all()
+    url_map = {u.id: u.url for u in urls}
+    result["fingerprints"] = [
+        {"name": f.name, "category": f.category, "value": f.value_level, "url": url_map.get(f.url_id, "")}
+        for f in fps if f.url_id in url_map
+    ][:30]
+
+    # 漏洞
+    vulns = db.query(Vulnerability).filter(Vulnerability.org_id == org_id)\
+        .order_by(Vulnerability.severity.desc()).limit(50).all()
+    result["vulnerabilities"] = [
+        {"name": v.name, "severity": v.severity, "type": v.vuln_type, "target": v.target}
+        for v in vulns
+    ]
+
+    # 统计
+    result["counts"] = {
+        "subdomains": len(subs), "ips": len(result["ips"]), "urls": len(result["urls"]),
+        "fingerprints": len(result["fingerprints"]), "vulnerabilities": len(vulns),
+    }
+
+    return result
+
+
 @router.put("/tasks/{task_id}/cancel")
 def cancel_task(task_id: int, db: Session = Depends(get_db)):
     """取消正在运行的任务"""
