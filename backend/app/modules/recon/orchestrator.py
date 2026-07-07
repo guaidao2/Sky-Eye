@@ -137,7 +137,7 @@ class ReconOrchestrator:
         analyzed = analyzer.analyze_batch(subdomains)
         attack_surface = analyzer.get_attack_surface_summary(analyzed)
         summary["attack_surface"] = attack_surface
-        # 更新数据库中的分类和优先级
+        # 更新数据库中的分类和优先级 + 实时写任务摘要
         for a in analyzed:
             db_sd = session.query(Subdomain).filter(
                 Subdomain.domain_id == domain_obj.id, Subdomain.subdomain == a["subdomain"]
@@ -145,7 +145,7 @@ class ReconOrchestrator:
             if db_sd:
                 db_sd.category = a["category"]
                 db_sd.priority = a["priority"]
-        session.commit()
+        task.result_summary = json.dumps(summary, ensure_ascii=False); session.commit()
 
         for sd in subdomains:
             if not session.query(Subdomain).filter(

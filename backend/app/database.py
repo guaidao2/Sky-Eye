@@ -8,7 +8,7 @@ from app.config import settings
 # 同步 SQLite 引擎
 engine = create_engine(
     settings.DATABASE_URL.replace("+aiosqlite", ""),  # sqlite:///./sky_eye.db
-    echo=settings.DEBUG,
+    echo=False,  # 关闭 SQL 日志，避免刷屏
     connect_args={"check_same_thread": False},  # FastAPI 多线程需要
 )
 
