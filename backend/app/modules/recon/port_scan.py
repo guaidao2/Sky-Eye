@@ -76,7 +76,7 @@ class PortScanner:
                 is_open = await self._check_port(host, port)
                 if not is_open:
                     return None
-                service = self.detect_service(host, port)
+                service = await self.detect_service(host, port)
                 banner = ""
                 if grab_banner:
                     banner = await self._grab_banner(host, port)

@@ -295,6 +295,21 @@ def _run_recon_sync(task_id: int):
 
 
 # ═══════════════════════════════════════
+# POC 引擎缓存（避免每次请求重新加载 3173 POCs）
+# ═══════════════════════════════════════
+
+_poc_engine_cache = None
+
+def _get_poc_engine():
+    global _poc_engine_cache
+    if _poc_engine_cache is None:
+        from app.modules.vulnscan.poc_engine import POCEngine
+        _poc_engine_cache = POCEngine()
+        _poc_engine_cache.load_poc_dir(str(settings.POC_DIR))
+    return _poc_engine_cache
+
+
+# ═══════════════════════════════════════
 # 扫描接口
 # ═══════════════════════════════════════
 
@@ -349,9 +364,7 @@ async def list_pocs(
     search: str = Query(""),
     limit: int = Query(200),
 ):
-    from app.modules.vulnscan.poc_engine import POCEngine
-    engine = POCEngine()
-    engine.load_poc_dir(str(settings.POC_DIR))
+    engine = _get_poc_engine()
     pocs = []
     for poc in engine.pocs.values():
         if tag and tag not in str(poc.tags):
@@ -371,9 +384,7 @@ async def list_pocs(
 
 @router.get("/pocs/{poc_id}")
 async def get_poc_detail(poc_id: str):
-    from app.modules.vulnscan.poc_engine import POCEngine
-    engine = POCEngine()
-    engine.load_poc_dir(str(settings.POC_DIR))
+    engine = _get_poc_engine()
     poc = engine.pocs.get(poc_id)
     if not poc:
         raise HTTPException(status_code=404, detail="POC 不存在")
@@ -392,9 +403,7 @@ async def get_poc_detail(poc_id: str):
 
 @router.post("/pocs/{poc_id}/execute")
 async def execute_poc(poc_id: str, data: ScanRequest):
-    from app.modules.vulnscan.poc_engine import POCEngine
-    engine = POCEngine()
-    engine.load_poc_dir(str(settings.POC_DIR))
+    engine = _get_poc_engine()
     result = await engine.execute(data.url, poc_id)
     return result
 
