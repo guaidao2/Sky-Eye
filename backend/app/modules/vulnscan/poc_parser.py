@@ -74,8 +74,10 @@ class NucleiPOC:
         # -- 结构化格式 --
         method = req.get("method", "GET")
         if isinstance(method, list):
-            method = method[0]
-        result["method"] = method.upper()
+            method = method[0] if method else "GET"
+        if not method:
+            method = "GET"
+        result["method"] = str(method).upper()
 
         path = req.get("path", "/")
         if isinstance(path, list):

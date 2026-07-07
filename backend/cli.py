@@ -141,13 +141,29 @@ def fingerprint(
     """对单个 URL 执行指纹识别"""
     console.print(f"[bold cyan]🔍 指纹识别[/] {url}")
     async def _run():
+        import httpx, re
+        try:
+            async with httpx.AsyncClient(timeout=10, verify=False) as c:
+                r = await c.get(url, follow_redirects=True)
+                st, tl, sv = r.status_code, '', r.headers.get('server','')
+                m = re.search(r'<title[^>]*>(.*?)</title>', r.text, re.I)
+                if m: tl = m.group(1).strip()[:100]
+                body = r.text[:50000]
+        except Exception as e:
+            console.print(f'[red]请求失败: {e}[/]')
+            return None
         from app.modules.vulnscan.orchestrator import VulnOrchestrator
         orch = VulnOrchestrator()
-        return await orch.scan_url(url)
-    result = asyncio.run(_run())
+        res = await orch.scan_url(url, headers=dict(r.headers), body=body, status_code=st)
+        return (st, tl, sv, res)
+    data = asyncio.run(_run())
+    if not data: return
+    status, title, server, result = data
+
+    console.print(f'  状态: {status} | 标题: {title or "(无)"} | Server: {server or "(无)"}')
     fps = result.get("fingerprints", [])
     if fps:
-        table = Table(title=f"{url} 指纹识别结果")
+        table = Table(title=f"指纹识别结果")
         table.add_column("产品", style="cyan"); table.add_column("分类", style="yellow")
         table.add_column("价值", style="red"); table.add_column("标签")
         for f in fps:
@@ -155,7 +171,7 @@ def fingerprint(
                           ",".join(f.get("tags",[]))[:60])
         console.print(table)
     else:
-        console.print("[yellow]未识别到指纹[/]")
+        console.print("[yellow]未识别到指纹[/] [dim](可尝试 vulnscan 做深度检测)[/]")
 
 
 @cli.command()
