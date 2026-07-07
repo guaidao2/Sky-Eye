@@ -121,9 +121,20 @@ class SubdomainCollector:
             return None
 
     def _load_wordlist(self) -> list:
-        """加载子域名字典"""
-        # 内置高频子域名列表（Top 200+）
-        common_subdomains = [
+        """加载子域名字典 — 优先外部文件，其次内置"""
+        # 1. 尝试加载外部字典文件
+        dict_file = settings.DICT_DIR / "subdomains" / "subdomains.txt"
+        if dict_file.exists():
+            try:
+                with open(dict_file, "r", encoding="utf-8") as f:
+                    words = [line.strip().lower() for line in f if line.strip() and not line.startswith("#")]
+                if len(words) >= 50:
+                    return words
+            except Exception:
+                pass
+
+        # 2. 内置 Top 200+ 高频子域名
+        return [
             "www", "mail", "webmail", "admin", "blog", "api", "app", "dev",
             "test", "beta", "demo", "shop", "m", "mobile", "wap", "bbs",
             "forum", "news", "video", "wiki", "help", "support", "service",
