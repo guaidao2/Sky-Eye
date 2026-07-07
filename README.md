@@ -169,6 +169,20 @@ sky-eye/
 - [ ] PostgreSQL 支持
 - [ ] Vue3 前端重构
 
+## 🙏 参考项目
+
+本项目在开发过程中参考了以下优秀开源项目的设计与思路：
+
+| 项目 | 说明 | 参考内容 |
+|------|------|---------|
+| [Nuclei](https://github.com/projectdiscovery/nuclei) | ProjectDiscovery | POC 模板格式、匹配器设计、YAML 解析 |
+| [FingerprintHub](https://github.com/0x727/FingerprintHub) | 0x727 团队 | Web 指纹规则库（`web_fingerprint_v4.json` 3290+ 条） |
+| [ARL](https://github.com/TophantTechnology/ARL) | 斗象科技 | 资产侦察灯塔，资产发现 Pipeline 思路 |
+| [Fscan](https://github.com/shadow1ng/fscan) | shadow1ng | 内网综合扫描，端口扫描与服务识别 |
+| [ksubdomain](https://github.com/knownsec/ksubdomain) | 知道创宇 | 无状态子域名爆破思路 |
+| [Httpx](https://github.com/projectdiscovery/httpx) | ProjectDiscovery | Web 存活探测与指纹识别 |
+| [EHole](https://github.com/EdgeSecurityTeam/EHole) | 棱角安全团队 | 指纹识别引擎设计 |
+
 ## 🤝 贡献
 
 欢迎提交 Issue 和 PR。
