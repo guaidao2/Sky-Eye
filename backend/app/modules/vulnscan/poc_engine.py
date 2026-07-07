@@ -253,6 +253,11 @@ class POCEngine:
         cond = matcher.get("condition", "or")
         case_insensitive = matcher.get("case_insensitive", True)
 
+        # 不支持的部分直接跳过，避免误报
+        unsupported_parts = ["interactsh_protocol", "interactsh_request", "interactsh", "dns"]
+        if part in unsupported_parts:
+            return False
+
         # 选择匹配源
         if part == "status" or matcher.get("type") == "status":
             source = str(resp.status_code)
