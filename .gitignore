@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtualenv
+venv/
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Database (contains user data)
+backend/sky_eye.db
+
+# Environment (contains API keys)
+backend/.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Reports (generated)
+reports/*.md
+reports/*.pdf
+
+# Temp
+*.tmp
+*.bak
+_fp_hub/
+_nuclei_tmpl/
+_nuclei_tmpl2/
+.reasonix/

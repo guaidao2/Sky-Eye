@@ -1,0 +1,63 @@
+id: sangfor-vpn-read
+
+info:
+  name: 深信服 VPN 任意文件读取
+  author: sky-eye
+  severity: critical
+  description: 深信服 SSL VPN 任意文件读取漏洞
+  tags: sangfor,vpn,security
+
+requests:
+  - method: GET
+    path:
+      - "/por/por/login_auth.csp"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "sangfor"
+          - "vpn"
+        condition: or
+---
+id: h3c-imc-rce
+
+info:
+  name: H3C IMC 远程代码执行
+  author: sky-eye
+  severity: critical
+  description: H3C IMC 智能管理中心远程代码执行
+  tags: h3c,imc,security
+
+requests:
+  - method: GET
+    path:
+      - "/imc/login.jsf"
+      - "/imc/"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "H3C"
+          - "IMC"
+        condition: and
+---
+id: tongda-oa-fileread
+
+info:
+  name: 通达OA 文件包含/RCE
+  author: sky-eye
+  severity: critical
+  description: 通达OA V11.x auth.php 文件包含导致 RCE
+  tags: tongda,oa
+
+requests:
+  - method: GET
+    path:
+      - "/module"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "通达"
+          - "tongda"
+        condition: or

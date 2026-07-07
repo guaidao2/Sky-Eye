@@ -1,0 +1,69 @@
+id: seeyon-session-info
+
+info:
+  name: 致远OA Session 泄露
+  author: sky-eye
+  severity: high
+  description: 致远OA A8+ / V5 未授权获取 Session 信息，可导致后台权限泄露
+  reference: https://cnvd.org.cn/
+  tags: seeyon,oa,rce
+
+requests:
+  - method: GET
+    path:
+      - "/seeyon/thirdpartyController.do"
+    headers:
+      Accept: "*/*"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "session"
+          - "login"
+        condition: or
+---
+id: seeyon-get-session
+
+info:
+  name: 致远OA 获取 Session
+  author: sky-eye
+  severity: high
+  description: 致远OA 未授权获取 Session
+  tags: seeyon,oa
+
+requests:
+  - method: GET
+    path:
+      - "/seeyon/message.do"
+    headers:
+      Accept: "*/*"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "java.lang.String"
+          - "ajax"
+          - "sessionid"
+        condition: or
+---
+id: seeyon-unauthorized
+
+info:
+  name: 致远OA 未授权访问
+  author: sky-eye
+  severity: medium
+  description: 致远OA 未授权访问敏感路径
+  tags: seeyon,oa
+
+requests:
+  - method: GET
+    path:
+      - "/seeyon/index.jsp"
+      - "/seeyon/main.do"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "main"
+          - "seeyon"
+        condition: or

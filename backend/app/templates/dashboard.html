@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Sky-Eye 仪表盘{% endblock %}
+{% block page_title %}<i class="bi bi-speedometer2 me-2"></i>仪表盘{% endblock %}
+
+{% block content %}
+<!-- 概览卡片 -->
+<div class="row g-3 mb-4" id="overviewCards">
+  <div class="col-3">
+    <div class="card stat-card" data-label="组织">
+      <div class="stat-value" id="stat-organizations">-</div>
+      <div class="stat-label">组织</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="card stat-card" data-label="域名">
+      <div class="stat-value" id="stat-domains">-</div>
+      <div class="stat-label">域名</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="card stat-card" data-label="子域名">
+      <div class="stat-value" id="stat-subdomains">-</div>
+      <div class="stat-label">子域名</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="card stat-card" data-label="IP">
+      <div class="stat-value" id="stat-ips">-</div>
+      <div class="stat-label">IP 地址</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="card stat-card" data-label="端口">
+      <div class="stat-value" id="stat-ports">-</div>
+      <div class="stat-label">开放端口</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="card stat-card" data-label="URL">
+      <div class="stat-value" id="stat-urls">-</div>
+      <div class="stat-label">存活 URL</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="card stat-card" data-label="JS发现">
+      <div class="stat-value" id="stat-js">-</div>
+      <div class="stat-label">JS 敏感信息</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="card stat-card" data-label="任务">
+      <div class="stat-value" id="stat-tasks">-</div>
+      <div class="stat-label">任务</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="card stat-card" data-label="指纹">
+      <div class="stat-value" id="stat-fingerprints">-</div>
+      <div class="stat-label">指纹识别</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="card stat-card" data-label="漏洞">
+      <div class="stat-value" id="stat-vulnerabilities">-</div>
+      <div class="stat-label">漏洞</div>
+    </div>
+  </div>
+</div>
+
+<!-- 资产价值标签说明 -->
+<div class="row g-2 mb-3">
+  <div class="col-auto"><span class="badge bg-danger">严重 - 安全设备/OA 系统</span></div>
+  <div class="col-auto"><span class="badge bg-warning text-dark">高危 - 企业软件/框架</span></div>
+  <div class="col-auto"><span class="badge bg-info text-dark">中危 - CMS/中间件</span></div>
+  <div class="col-auto"><span class="badge bg-secondary">低危 - 通用服务</span></div>
+</div>
+
+<!-- 快速开始 -->
+<div class="card mb-4">
+  <div class="card-header"><i class="bi bi-rocket-takeoff me-2"></i>快速开始</div>
+  <div class="card-body">
+    <form id="reconForm" class="row g-3">
+      <div class="col-md-5">
+        <input type="text" class="form-control" id="targetDomain" placeholder="目标域名, e.g. example.com" required>
+      </div>
+      <div class="col-md-4">
+        <input type="text" class="form-control" id="orgName" placeholder="组织名称 (可选)">
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100" id="startBtn">
+          <i class="bi bi-search me-1"></i> 开始信息收集
+        </button>
+      </div>
+    </form>
+    <div id="reconStatus" class="mt-2" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- 最近任务 -->
+<div class="card">
+  <div class="card-header"><i class="bi bi-clock-history me-2"></i>最近任务</div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-dark table-striped mb-0" id="taskTable">
+        <thead>
+          <tr>
+            <th>任务名称</th>
+            <th>目标</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>进度</th>
+            <th>结果</th>
+            <th>时间</th>
+          </tr>
+        </thead>
+        <tbody id="taskBody">
+          <tr><td colspan="7" class="text-center text-secondary">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadOverview() {
+  const res = await fetch('/api/v1/overview');
+  const data = await res.json();
+  document.getElementById('stat-organizations').textContent = data.total_organizations;
+  document.getElementById('stat-domains').textContent = data.total_domains;
+  document.getElementById('stat-subdomains').textContent = data.total_subdomains;
+  document.getElementById('stat-ips').textContent = data.total_ips;
+  document.getElementById('stat-ports').textContent = data.total_ports;
+  document.getElementById('stat-urls').textContent = data.total_urls;
+  document.getElementById('stat-js').textContent = data.total_js_sensitives;
+  document.getElementById('stat-tasks').textContent = data.total_tasks;
+  // Fetch additional stats for fingerprint & vuln
+  try {
+    const statsRes = await fetch('/api/v1/stats');
+    const stats = await statsRes.json();
+    document.getElementById('stat-fingerprints').textContent = stats.fingerprints || 0;
+    document.getElementById('stat-vulnerabilities').textContent = stats.vulnerabilities || 0;
+  } catch(e) {}
+}
+
+async function loadTasks() {
+  const res = await fetch('/api/v1/tasks');
+  const tasks = await res.json();
+  const tbody = document.getElementById('taskBody');
+  if (tasks.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary">暂无任务</td></tr>';
+    return;
+  }
+  tbody.innerHTML = tasks.slice(0, 10).map(t => {
+    const statusMap = { pending: '等待中', running: '运行中', completed: '已完成', failed: '失败' };
+    const badgeMap = { pending: 'secondary', running: 'warning', completed: 'success', failed: 'danger' };
+    const typeMap = { recon: 'primary', fingerprint: 'success', vulnscan: 'warning' };
+    return `<tr>
+      <td>${t.name}</td>
+      <td>${t.target}</td>
+      <td><span class="badge bg-${typeMap[t.task_type] || 'info'}">${t.task_type}</span></td>
+      <td><span class="badge bg-${badgeMap[t.status]}">${statusMap[t.status] || t.status}</span></td>
+      <td>
+        <div class="progress" style="height: 6px;">
+          <div class="progress-bar" style="width:${t.progress}%;background:#00d4ff;"></div>
+        </div>
+        <small class="text-secondary">${t.progress}%</small>
+      </td>
+      <td><small>${t.result_summary || '-'}</small></td>
+      <td><small class="text-secondary">${t.created_at ? t.created_at.slice(0, 16) : '-'}</small></td>
+    </tr>`;
+  }).join('');
+}
+
+document.getElementById('reconForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const domain = document.getElementById('targetDomain').value.trim();
+  const orgName = document.getElementById('orgName').value.trim() || domain;
+  const statusDiv = document.getElementById('reconStatus');
+  const btn = document.getElementById('startBtn');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 执行中...';
+  statusDiv.style.display = 'none';
+
+  try {
+    // 获取或创建组织
+    let orgs = await (await fetch('/api/v1/organizations')).json();
+    let org = orgs.find(o => o.name === orgName);
+    if (!org) {
+      const r = await fetch('/api/v1/organizations', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name: orgName }),
+      });
+      org = await r.json();
+    }
+
+    // 创建任务
+    const taskRes = await fetch('/api/v1/tasks', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        org_id: org.id,
+        name: `Recon: ${domain}`,
+        task_type: 'recon',
+        target: domain,
+      }),
+    });
+    const task = await taskRes.json();
+
+    statusDiv.className = 'alert alert-success mt-2';
+    statusDiv.innerHTML = `<i class="bi bi-check-circle me-1"></i> 任务已创建! ID: ${task.id}`;
+    statusDiv.style.display = 'block';
+    document.getElementById('targetDomain').value = '';
+    await loadOverview();
+    await loadTasks();
+  } catch (err) {
+    statusDiv.className = 'alert alert-danger mt-2';
+    statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i> 失败: ${err.message}`;
+    statusDiv.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-search me-1"></i> 开始信息收集';
+  }
+});
+
+loadOverview();
+loadTasks();
+// 每 10 秒刷新
+setInterval(loadOverview, 10000);
+setInterval(loadTasks, 10000);
+</script>
+{% endblock %}

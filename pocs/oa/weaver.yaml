@@ -1,0 +1,66 @@
+id: weaver-ecology-sqli
+
+info:
+  name: 泛微 e-cology SQL 注入
+  author: sky-eye
+  severity: critical
+  description: 泛微 e-cology 多个接口存在 SQL 注入漏洞
+  reference: https://cnvd.org.cn/
+  tags: weaver,ecology,oa,sqli
+
+requests:
+  - method: GET
+    path:
+      - "/api/hrm/getHrmDeptTreeData"
+      - "/api/workplan/WorkPlanCreateByXml"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "tree"
+          - "dept"
+          - "error"
+        condition: or
+---
+id: weaver-ecology-bsh-rce
+
+info:
+  name: 泛微 e-cology Bsh RCE
+  author: sky-eye
+  severity: critical
+  description: 泛微 e-cology BeanShell 远程代码执行
+  tags: weaver,ecology,oa,rce
+
+requests:
+  - method: GET
+    path:
+      - "/bsh.servlet.BshServlet"
+      - "/weaver/bsh.servlet.BshServlet"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "BeanShell"
+          - "bsh"
+        condition: or
+---
+id: weaver-ecology-upload
+
+info:
+  name: 泛微 e-cology 文件上传
+  author: sky-eye
+  severity: critical
+  description: 泛微 e-cology 文件上传漏洞
+  tags: weaver,ecology,oa,upload
+
+requests:
+  - method: GET
+    path:
+      - "/page/export/ImportExcelController.jsp"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "import"
+          - "upload"
+        condition: or

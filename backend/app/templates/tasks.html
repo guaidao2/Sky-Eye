@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}Sky-Eye 任务管理{% endblock %}
+{% block page_title %}<i class="bi bi-list-task me-2"></i>任务管理{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-list-ul me-2"></i>任务列表</span>
+    <button class="btn btn-sm btn-primary" onclick="showNewTask()">
+      <i class="bi bi-plus-lg me-1"></i> 新建任务
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-dark table-striped mb-0">
+        <thead>
+          <tr>
+            <th>任务名称</th>
+            <th>目标</th>
+            <th>类型</th>
+            <th>状态</th>
+            <th>进度</th>
+            <th>结果摘要</th>
+            <th>创建时间</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="taskBody">
+          <tr><td colspan="8" class="text-center text-secondary">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 新建任务对话框 -->
+<div class="modal fade" id="newTaskModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">新建任务</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">任务名称</label>
+          <input type="text" class="form-control" id="taskName" placeholder="e.g. 信息收集-xxx">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">目标</label>
+          <input type="text" class="form-control" id="taskTarget" placeholder="域名或IP">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">任务类型</label>
+          <select class="form-select" id="taskType">
+            <option value="recon">信息收集 Recon</option>
+            <option value="fingerprint" disabled>指纹识别 (即将上线)</option>
+            <option value="vulnscan" disabled>漏洞检测 (即将上线)</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">所属组织</label>
+          <select class="form-select" id="taskOrg">
+            <option value="">-- 选择组织 --</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-primary" onclick="createTask()" id="createTaskBtn">
+          创建并执行
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 错误详情对话框 -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-1"></i>错误信息</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <pre id="errorContent" class="text-danger mb-0" style="white-space:pre-wrap;"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadTasks() {
+  const [tasksRes, orgsRes] = await Promise.all([
+    fetch('/api/v1/tasks'),
+    fetch('/api/v1/organizations'),
+  ]);
+  const tasks = await tasksRes.json();
+  const orgs = await orgsRes.json();
+  const tbody = document.getElementById('taskBody');
+
+  // 更新组织下拉
+  const orgSelect = document.getElementById('taskOrg');
+  if (orgSelect.options.length <= 1) {
+    orgs.forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.id;
+      opt.textContent = o.name;
+      orgSelect.appendChild(opt);
+    });
+  }
+
+  if (tasks.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary">暂无任务</td></tr>';
+    return;
+  }
+
+  const statusMap = { pending: '等待中', running: '运行中', completed: '已完成', failed: '失败' };
+  const badgeMap = { pending: 'secondary', running: 'warning', completed: 'success', failed: 'danger' };
+  const typeMap = { recon: 'primary', finger: 'success', vulnscan: 'warning' };
+
+  tbody.innerHTML = tasks.map(t => `
+    <tr>
+      <td>${t.name}</td>
+      <td>${t.target}</td>
+      <td><span class="badge bg-${typeMap[t.task_type] || 'info'}">${t.task_type}</span></td>
+      <td><span class="badge bg-${badgeMap[t.status]}">${statusMap[t.status] || t.status}</span></td>
+      <td style="min-width:100px;">
+        <div class="progress" style="height:6px;">
+          <div class="progress-bar" style="width:${t.progress}%;background:#00d4ff;"></div>
+        </div>
+        <small class="text-secondary">${t.progress}%</small>
+      </td>
+      <td><small>${t.result_summary || '-'}</small></td>
+      <td><small class="text-secondary">${t.created_at ? t.created_at.slice(0,16) : '-'}</small></td>
+      <td>
+        ${t.status === 'failed' ? `<button class="btn btn-sm btn-outline-danger" onclick='showError(${JSON.stringify(t.error)})'><i class="bi bi-exclamation-circle"></i></button>` : '-'}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function showNewTask() {
+  new bootstrap.Modal(document.getElementById('newTaskModal')).show();
+}
+
+async function createTask() {
+  const name = document.getElementById('taskName').value.trim();
+  const target = document.getElementById('taskTarget').value.trim();
+  const type = document.getElementById('taskType').value;
+  const orgId = document.getElementById('taskOrg').value;
+
+  if (!name || !target || !orgId) {
+    return alert('请填写完整信息');
+  }
+
+  const btn = document.getElementById('createTaskBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 创建中...';
+
+  try {
+    await fetch('/api/v1/tasks', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ org_id: parseInt(orgId), name, task_type: type, target }),
+    });
+    bootstrap.Modal.getInstance(document.getElementById('newTaskModal')).hide();
+    document.getElementById('taskName').value = '';
+    document.getElementById('taskTarget').value = '';
+    await loadTasks();
+  } catch (err) {
+    alert('创建失败: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '创建并执行';
+  }
+}
+
+function showError(err) {
+  document.getElementById('errorContent').textContent = err || '未知错误';
+  new bootstrap.Modal(document.getElementById('errorModal')).show();
+}
+
+loadTasks();
+setInterval(loadTasks, 10000);
+</script>
+{% endblock %}

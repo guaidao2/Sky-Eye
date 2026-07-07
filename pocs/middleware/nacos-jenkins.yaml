@@ -1,0 +1,86 @@
+id: nacos-unauth
+
+info:
+  name: Nacos 未授权访问
+  author: sky-eye
+  severity: high
+  description: Nacos 未授权访问，可获取配置信息
+  tags: nacos,middleware
+
+requests:
+  - method: GET
+    path:
+      - "/nacos/v1/console/server/status"
+      - "/nacos/v1/cs/communication/health"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "UP"
+          - "health"
+        condition: or
+---
+id: nacos-default-secret
+
+info:
+  name: Nacos 默认密钥泄露
+  author: sky-eye
+  severity: high
+  description: Nacos 默认 SecretKey 可导致 JWT 伪造
+  tags: nacos,middleware
+
+requests:
+  - method: GET
+    path:
+      - "/nacos/v1/cs/configs?dataId=&group=&tenant="
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "pageItems"
+          - "totalCount"
+        condition: or
+---
+id: jenkins-unauth
+
+info:
+  name: Jenkins 未授权访问
+  author: sky-eye
+  severity: high
+  description: Jenkins 未授权访问可导致命令执行
+  tags: jenkins,ci,middleware
+
+requests:
+  - method: GET
+    path:
+      - "/script"
+      - "/manage"
+      - "/computer"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "Jenkins"
+          - "Manage Jenkins"
+        condition: or
+---
+id: jenkins-cli-read
+
+info:
+  name: Jenkins CLI 任意文件读取
+  author: sky-eye
+  severity: critical
+  description: Jenkins CLI 接口任意文件读取 (CVE-2024-23897)
+  tags: jenkins,ci,rce
+
+requests:
+  - method: GET
+    path:
+      - "/cli"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "remoting"
+          - "cli"
+        condition: or

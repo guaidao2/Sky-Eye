@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Sky-Eye 漏洞管理{% endblock %}
+{% block page_title %}<i class="bi bi-shield-exclamation me-2"></i>漏洞管理{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4" id="vulnStats">
+  <div class="col"><div class="card stat-card"><div class="stat-value" id="sv-critical">-</div><div class="stat-label">严重</div></div></div>
+  <div class="col"><div class="card stat-card"><div class="stat-value" id="sv-high">-</div><div class="stat-label">高危</div></div></div>
+  <div class="col"><div class="card stat-card"><div class="stat-value" id="sv-medium">-</div><div class="stat-label">中危</div></div></div>
+  <div class="col"><div class="card stat-card"><div class="stat-value" id="sv-low">-</div><div class="stat-label">低危</div></div></div>
+  <div class="col"><div class="card stat-card"><div class="stat-value" id="sv-info">-</div><div class="stat-label">信息</div></div></div>
+</div>
+
+<!-- 过滤器 -->
+<div class="card mb-3">
+  <div class="card-body row g-2">
+    <div class="col-md-3">
+      <select class="form-select" id="filterOrg" onchange="loadVulns()">
+        <option value="">全部组织</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select" id="filterSev" onchange="loadVulns()">
+        <option value="">全部严重度</option>
+        <option value="critical">严重</option>
+        <option value="high">高危</option>
+        <option value="medium">中危</option>
+        <option value="low">低危</option>
+        <option value="info">信息</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select class="form-select" id="filterStatus" onchange="loadVulns()">
+        <option value="">全部状态</option>
+        <option value="confirmed">已确认</option>
+        <option value="submitted">已提交</option>
+        <option value="fixed">已修复</option>
+        <option value="closed">已关闭</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-outline-primary" onclick="generateReport()"><i class="bi bi-file-earmark-text"></i> 生成报告</button>
+    </div>
+  </div>
+</div>
+
+<!-- 漏洞列表 -->
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-dark table-striped mb-0">
+        <thead>
+          <tr>
+            <th>ID</th><th>漏洞名称</th><th>类型</th><th>严重度</th>
+            <th>目标</th><th>状态</th><th>SRC</th><th>赏金</th><th>发现时间</th>
+          </tr>
+        </thead>
+        <tbody id="vulnBody">
+          <tr><td colspan="9" class="text-center text-secondary">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const sevBadge = {critical:'danger',high:'warning',medium:'info',low:'secondary',info:'light'};
+const sevName = {critical:'严重',high:'高危',medium:'中危',low:'低危',info:'信息'};
+const statusBadge = {confirmed:'info',submitted:'primary',fixed:'success',closed:'secondary',duplicate:'warning'};
+const statusName = {confirmed:'已确认',submitted:'已提交',fixed:'已修复',closed:'已关闭',duplicate:'重复'};
+const typeName = {rce:'RCE',sqli:'SQL注入',unauth:'未授权',weakpass:'弱口令',ssrf:'SSRF',lfi:'文件包含',
+                   xxe:'XXE',upload:'文件上传',infoleak:'信息泄露',other:'其他'};
+
+async function loadOrgs() {
+  const res = await fetch('/api/v1/organizations');
+  const orgs = await res.json();
+  const sel = document.getElementById('filterOrg');
+  orgs.forEach(o => { sel.innerHTML += `<option value="${o.id}">${o.name}</option>`; });
+}
+
+async function loadVulns() {
+  const org = document.getElementById('filterOrg').value;
+  const sev = document.getElementById('filterSev').value;
+  const status = document.getElementById('filterStatus').value;
+  let url = '/api/v1/vulnerabilities?';
+  if(org) url += 'org_id='+org+'&';
+  if(sev) url += 'severity='+sev+'&';
+  if(status) url += 'status='+status+'&';
+  const res = await fetch(url);
+  const vulns = await res.json();
+  const tbody = document.getElementById('vulnBody');
+  if (!vulns.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary">暂无漏洞 — 运行一次信息收集任务后自动发现</td></tr>';
+    document.getElementById('sv-critical').textContent = '0';
+    document.getElementById('sv-high').textContent = '0';
+    document.getElementById('sv-medium').textContent = '0';
+    document.getElementById('sv-low').textContent = '0';
+    document.getElementById('sv-info').textContent = '0';
+    return;
+  }
+  // 统计数据
+  const counts = {critical:0,high:0,medium:0,low:0,info:0};
+  vulns.forEach(v => counts[v.severity] = (counts[v.severity]||0)+1);
+  document.getElementById('sv-critical').textContent = counts.critical;
+  document.getElementById('sv-high').textContent = counts.high;
+  document.getElementById('sv-medium').textContent = counts.medium;
+  document.getElementById('sv-low').textContent = counts.low;
+  document.getElementById('sv-info').textContent = counts.info;
+  // 渲染表格
+  tbody.innerHTML = vulns.slice(0, 200).map(v => `<tr>
+    <td>${v.id}</td>
+    <td><strong>${v.name}</strong>${v.poc_id ? '<br><small class="text-secondary">POC: '+v.poc_id+'</small>' : ''}</td>
+    <td><span class="badge bg-dark">${typeName[v.vuln_type]||v.vuln_type}</span></td>
+    <td><span class="badge bg-${sevBadge[v.severity]||'secondary'}">${sevName[v.severity]||v.severity}</span></td>
+    <td><small>${v.target||'-'}</small></td>
+    <td><span class="badge bg-${statusBadge[v.status]||'secondary'}">${statusName[v.status]||v.status}</span></td>
+    <td>${v.src_platform||'-'}</td>
+    <td>${v.bounty||'-'}</td>
+    <td><small>${v.found_at ? v.found_at.slice(0,10) : '-'}</small></td>
+  </tr>`).join('');
+}
+
+async function generateReport() {
+  const org = document.getElementById('filterOrg').value;
+  if(!org) return alert('请先选择一个组织');
+  const res = await fetch('/api/v1/report', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({org_id: parseInt(org), format:'markdown', include_poc:true, include_evidence:true})
+  });
+  const data = await res.json();
+  const blob = new Blob([data.content], {type:'text/markdown'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sky-eye-report-'+org+'.md';
+  a.click();
+}
+
+loadOrgs();
+loadVulns();
+setInterval(loadVulns, 15000);
+</script>
+{% endblock %}

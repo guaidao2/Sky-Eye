@@ -1,0 +1,708 @@
+# Sky-Eye 综合指纹库
+# 资产价值等级: 5=严重(OA/安全设备) 4=高危(企业软件) 3=中危(CMS/框架) 2=低危(通用)
+
+# ───────────────────────────────────
+# OA 办公系统 (价值分: 5)
+# ───────────────────────────────────
+
+- name: 致远OA Seeyon
+  value: 5
+  category: oa
+  tags: [oa, seeyon, 致远]
+  rules:
+    - type: header
+      match: Server
+      pattern: 'Seeyon'
+    - type: url
+      pattern: '/seeyon'
+    - type: body
+      pattern: 'seeyon'
+    - type: body
+      pattern: '致远OA'
+    - type: body
+      pattern: '致远互联'
+    - type: favicon
+      hash: '-1241187776'
+
+- name: 致远A8+
+  value: 5
+  category: oa
+  tags: [oa, seeyon, 致远]
+  rules:
+    - type: url
+      pattern: '/seeyon/main.do'
+    - type: body
+      pattern: 'A8'
+
+- name: 泛微OA Weaver e-cology
+  value: 5
+  category: oa
+  tags: [oa, weaver, 泛微]
+  rules:
+    - type: header
+      match: Set-Cookie
+      pattern: 'ecology'
+    - type: url
+      pattern: '/wui/'
+    - type: body
+      pattern: '泛微'
+    - type: body
+      pattern: 'e-cology'
+    - type: body
+      pattern: 'weaver'
+    - type: favicon
+      hash: '-986681482'
+
+- name: 泛微OA e-office
+  value: 5
+  category: oa
+  tags: [oa, weaver, 泛微]
+  rules:
+    - type: url
+      pattern: '/eoffice/'
+    - type: body
+      pattern: 'e-office'
+    - type: body
+      pattern: '泛微'
+
+- name: 蓝凌OA Landray
+  value: 5
+  category: oa
+  tags: [oa, landray, 蓝凌]
+  rules:
+    - type: url
+      pattern: '/landray/'
+    - type: body
+      pattern: '蓝凌'
+    - type: body
+      pattern: 'Landray'
+    - type: body
+      pattern: 'EKP'
+
+- name: 通达OA Tongda
+  value: 5
+  category: oa
+  tags: [oa, tongda, 通达]
+  rules:
+    - type: url
+      pattern: '/module'
+    - type: body
+      pattern: '通达OA'
+    - type: body
+      pattern: 'Tongda'
+    - type: favicon
+      hash: '-1616143109'
+
+- name: 用友NC Yonyou
+  value: 5
+  category: oa
+  tags: [oa, yonyou, 用友]
+  rules:
+    - type: url
+      pattern: '/nc/'
+    - type: body
+      pattern: '用友'
+    - type: body
+      pattern: 'Yonyou'
+    - type: body
+      pattern: 'NC Cloud'
+
+- name: 用友U8
+  value: 5
+  category: oa
+  tags: [oa, yonyou, 用友]
+  rules:
+    - type: url
+      pattern: '/u8/'
+    - type: body
+      pattern: 'U8'
+
+- name: 金蝶OA Kingdee
+  value: 5
+  category: oa
+  tags: [oa, kingdee, 金蝶]
+  rules:
+    - type: url
+      pattern: '/eas/'
+    - type: body
+      pattern: '金蝶'
+    - type: body
+      pattern: 'Kingdee'
+
+- name: 万户OA
+  value: 5
+  category: oa
+  tags: [oa, wanhu, 万户]
+  rules:
+    - type: url
+      pattern: '/defaultroot/'
+    - type: body
+      pattern: '万户OA'
+
+- name: 华天动力OA
+  value: 5
+  category: oa
+  tags: [oa, 华天]
+  rules:
+    - type: url
+      pattern: '/htoa/'
+    - type: body
+      pattern: '华天动力'
+
+- name: 红帆OA
+  value: 5
+  category: oa
+  tags: [oa, 红帆]
+  rules:
+    - type: url
+      pattern: '/iOffice/'
+    - type: body
+      pattern: '红帆'
+
+# ───────────────────────────────────
+# CMS 建站系统 (价值分: 3)
+# ───────────────────────────────────
+
+- name: 织梦CMS DedeCMS
+  value: 3
+  category: cms
+  tags: [cms, dedecms, 织梦]
+  rules:
+    - type: body
+      pattern: 'Power by DedeCMS'
+    - type: body
+      pattern: 'Powered by DedeCMS'
+    - type: url
+      pattern: '/include/'
+    - type: url
+      pattern: '/plus/'
+
+- name: 帝国CMS EmpireCMS
+  value: 3
+  category: cms
+  tags: [cms, empirecms, 帝国]
+  rules:
+    - type: body
+      pattern: 'EmpireCMS'
+    - type: body
+      pattern: 'Powered by EmpireCMS'
+
+- name: PHPCMS
+  value: 3
+  category: cms
+  tags: [cms, phpcms]
+  rules:
+    - type: body
+      pattern: 'PHPCMS'
+    - type: url
+      pattern: '/phpcms/'
+
+- name: WordPress
+  value: 3
+  category: cms
+  tags: [cms, wordpress, wp]
+  rules:
+    - type: body
+      pattern: '/wp-content/'
+    - type: body
+      pattern: '/wp-includes/'
+    - type: url
+      pattern: '/wp-admin'
+    - type: url
+      pattern: '/wp-login.php'
+
+- name: Discuz!
+  value: 3
+  category: cms
+  tags: [cms, discuz, 论坛]
+  rules:
+    - type: body
+      pattern: 'Discuz!'
+    - type: url
+      pattern: '/forum.php'
+    - type: body
+      pattern: 'Comsenz'
+
+- name: 齐博CMS
+  value: 3
+  category: cms
+  tags: [cms, 齐博]
+  rules:
+    - type: body
+      pattern: '齐博CMS'
+    - type: body
+      pattern: 'QiboCMS'
+
+- name: MetInfo
+  value: 3
+  category: cms
+  tags: [cms, metinfo]
+  rules:
+    - type: body
+      pattern: 'MetInfo'
+    - type: url
+      pattern: '/metinfo/'
+
+# ───────────────────────────────────
+# 开发框架 (价值分: 3-4)
+# ───────────────────────────────────
+
+- name: Spring Boot
+  value: 4
+  category: framework
+  tags: [framework, spring, java]
+  rules:
+    - type: body
+      pattern: 'Whitelabel Error Page'
+    - type: header
+      match: Set-Cookie
+      pattern: 'JSESSIONID'
+    - type: url
+      pattern: '/actuator'
+    - type: url
+      pattern: '/actuator/health'
+    - type: url
+      pattern: '/actuator/info'
+
+- name: ThinkPHP
+  value: 4
+  category: framework
+  tags: [framework, thinkphp, php]
+  rules:
+    - type: header
+      match: Set-Cookie
+      pattern: 'Think'
+    - type: body
+      pattern: 'ThinkPHP'
+    - type: body
+      pattern: 'thinkphp'
+
+- name: Apache Shiro
+  value: 4
+  category: framework
+  tags: [framework, shiro, java]
+  rules:
+    - type: header
+      match: Set-Cookie
+      pattern: 'rememberMe=deleteMe'
+    - type: header
+      match: Set-Cookie
+      pattern: 'rememberMe='
+
+- name: FastJSON
+  value: 4
+  category: framework
+  tags: [framework, fastjson, java]
+  rules:
+    - type: body
+      pattern: 'fastjson'
+
+- name: Laravel
+  value: 3
+  category: framework
+  tags: [framework, laravel, php]
+  rules:
+    - type: header
+      match: Set-Cookie
+      pattern: 'laravel_session'
+    - type: body
+      pattern: 'Laravel'
+
+- name: Yii2
+  value: 3
+  category: framework
+  tags: [framework, yii, php]
+  rules:
+    - type: body
+      pattern: 'Yii Framework'
+
+- name: Struts2
+  value: 4
+  category: framework
+  tags: [framework, struts2, java]
+  rules:
+    - type: url
+      pattern: '.action'
+    - type: url
+      pattern: '.do'
+
+- name: Spring Cloud Gateway
+  value: 4
+  category: framework
+  tags: [framework, spring, gateway]
+  rules:
+    - type: body
+      pattern: 'Spring Cloud Gateway'
+
+- name: RuoYi 若依
+  value: 4
+  category: framework
+  tags: [framework, ruoyi, 若依]
+  rules:
+    - type: body
+      pattern: '若依'
+    - type: body
+      pattern: 'RuoYi'
+
+# ───────────────────────────────────
+# 中间件 (价值分: 3-4)
+# ───────────────────────────────────
+
+- name: Apache Tomcat
+  value: 3
+  category: middleware
+  tags: [middleware, tomcat, java]
+  rules:
+    - type: header
+      match: Server
+      pattern: 'Apache-Coyote'
+    - type: header
+      match: Server
+      pattern: 'Tomcat'
+    - type: body
+      pattern: 'Apache Tomcat'
+
+- name: Jenkins
+  value: 4
+  category: middleware
+  tags: [middleware, jenkins, ci]
+  rules:
+    - type: header
+      match: Set-Cookie
+      pattern: 'JSESSIONID\.'
+    - type: body
+      pattern: 'Jenkins'
+    - type: url
+      pattern: '/jenkins'
+    - type: url
+      pattern: '/script'
+
+- name: Nacos
+  value: 4
+  category: middleware
+  tags: [middleware, nacos, 注册中心]
+  rules:
+    - type: url
+      pattern: '/nacos/'
+    - type: body
+      pattern: 'Nacos'
+
+- name: Redis (Web界面)
+  value: 4
+  category: middleware
+  tags: [middleware, redis]
+  rules:
+    - type: body
+      pattern: 'Redis'
+    - type: url
+      pattern: '/redis'
+
+- name: Elasticsearch
+  value: 4
+  category: middleware
+  tags: [middleware, elasticsearch, es]
+  rules:
+    - type: json
+      pattern: '"cluster_name"'
+    - type: url
+      pattern: '/_cat'
+    - type: url
+      pattern: '/_search'
+
+- name: RabbitMQ
+  value: 3
+  category: middleware
+  tags: [middleware, rabbitmq, mq]
+  rules:
+    - type: url
+      pattern: '/rabbitmq'
+    - type: body
+      pattern: 'RabbitMQ'
+
+- name: ActiveMQ
+  value: 4
+  category: middleware
+  tags: [middleware, activemq]
+  rules:
+    - type: url
+      pattern: '/activemq'
+    - type: body
+      pattern: 'ActiveMQ'
+
+- name: ZooKeeper (Web)
+  value: 3
+  category: middleware
+  tags: [middleware, zookeeper]
+  rules:
+    - type: body
+      pattern: 'ZooKeeper'
+
+- name: Apache Dubbo
+  value: 3
+  category: middleware
+  tags: [middleware, dubbo]
+  rules:
+    - type: url
+      pattern: '/dubbo'
+    - type: body
+      pattern: 'dubbo'
+
+- name: Nginx
+  value: 2
+  category: middleware
+  tags: [middleware, nginx, web]
+  rules:
+    - type: header
+      match: Server
+      pattern: 'nginx'
+
+- name: Apache HTTPD
+  value: 2
+  category: middleware
+  tags: [middleware, apache, web]
+  rules:
+    - type: header
+      match: Server
+      pattern: 'Apache'
+
+- name: IIS
+  value: 2
+  category: middleware
+  tags: [middleware, iis, windows]
+  rules:
+    - type: header
+      match: Server
+      pattern: 'IIS'
+    - type: header
+      match: X-Powered-By
+      pattern: 'ASP.NET'
+
+# ───────────────────────────────────
+# 安全设备 / VPN (价值分: 5)
+# ───────────────────────────────────
+
+- name: 深信服 Sangfor VPN
+  value: 5
+  category: security_device
+  tags: [security, sangfor, vpn, 深信服]
+  rules:
+    - type: body
+      pattern: 'Sangfor'
+    - type: body
+      pattern: '深信服'
+    - type: url
+      pattern: '/por/'
+    - type: url
+      pattern: '/cgi-bin/'
+
+- name: 深信服AD
+  value: 5
+  category: security_device
+  tags: [security, sangfor, ad]
+  rules:
+    - type: body
+      pattern: 'SANGFOR AD'
+
+- name: 华为 Huawei Firewall
+  value: 5
+  category: security_device
+  tags: [security, huawei, firewall]
+  rules:
+    - type: body
+      pattern: 'Huawei'
+    - type: url
+      pattern: '/cgi-bin/'
+
+- name: H3C 设备
+  value: 5
+  category: security_device
+  tags: [security, h3c, network]
+  rules:
+    - type: body
+      pattern: 'H3C'
+    - type: url
+      pattern: '/imc/'
+
+- name: 天融信 TopSec
+  value: 5
+  category: security_device
+  tags: [security, topsec, 天融信]
+  rules:
+    - type: body
+      pattern: 'TopSec'
+    - type: body
+      pattern: '天融信'
+
+- name: 绿盟 NSFOCUS
+  value: 5
+  category: security_device
+  tags: [security, nsfocus, 绿盟]
+  rules:
+    - type: body
+      pattern: 'NSFOCUS'
+    - type: body
+      pattern: '绿盟'
+
+- name: Fortinet FortiGate
+  value: 5
+  category: security_device
+  tags: [security, fortinet, fortigate, vpn]
+  rules:
+    - type: body
+      pattern: 'Fortinet'
+    - type: body
+      pattern: 'FortiGate'
+    - type: url
+      pattern: '/remote/login'
+
+- name: Palo Alto
+  value: 5
+  category: security_device
+  tags: [security, paloalto, vpn]
+  rules:
+    - type: body
+      pattern: 'PAN-OS'
+    - type: url
+      pattern: '/global-protect'
+
+# ───────────────────────────────────
+# 企业软件 (价值分: 4)
+# ───────────────────────────────────
+
+- name: GitLab
+  value: 4
+  category: enterprise
+  tags: [enterprise, gitlab, devops]
+  rules:
+    - type: body
+      pattern: 'GitLab'
+    - type: url
+      pattern: '/users/sign_in'
+    - type: url
+      pattern: '/explore'
+
+- name: Jira
+  value: 4
+  category: enterprise
+  tags: [enterprise, jira, atlassian]
+  rules:
+    - type: body
+      pattern: 'Jira'
+    - type: url
+      pattern: '/secure/Dashboard.jspa'
+
+- name: Confluence
+  value: 4
+  category: enterprise
+  tags: [enterprise, confluence, atlassian]
+  rules:
+    - type: body
+      pattern: 'Confluence'
+    - type: url
+      pattern: '/login.action'
+
+- name: SonarQube
+  value: 4
+  category: enterprise
+  tags: [enterprise, sonarqube, code]
+  rules:
+    - type: body
+      pattern: 'SonarQube'
+    - type: url
+      pattern: '/about'
+
+- name: Nexus Repository
+  value: 4
+  category: enterprise
+  tags: [enterprise, nexus, repository]
+  rules:
+    - type: body
+      pattern: 'Nexus Repository'
+    - type: url
+      pattern: '/service/rest/'
+
+- name: Harbor
+  value: 4
+  category: enterprise
+  tags: [enterprise, harbor, registry]
+  rules:
+    - type: body
+      pattern: 'Harbor'
+    - type: url
+      pattern: '/harbor/'
+
+- name: JumpServer
+  value: 4
+  category: enterprise
+  tags: [enterprise, jumpserver, bastion]
+  rules:
+    - type: body
+      pattern: 'JumpServer'
+    - type: url
+      pattern: '/users/login/'
+
+- name: Grafana
+  value: 3
+  category: enterprise
+  tags: [enterprise, grafana, monitor]
+  rules:
+    - type: body
+      pattern: 'Grafana'
+    - type: url
+      pattern: '/grafana/'
+
+- name: Kibana
+  value: 3
+  category: enterprise
+  tags: [enterprise, kibana, elastic]
+  rules:
+    - type: body
+      pattern: 'Kibana'
+    - type: url
+      pattern: '/kibana/'
+
+# ───────────────────────────────────
+# WAF 识别 (价值分: 2)
+# ───────────────────────────────────
+
+- name: Cloudflare
+  value: 2
+  category: waf
+  tags: [waf, cloudflare, cdn]
+  rules:
+    - type: header
+      match: Server
+      pattern: 'cloudflare'
+    - type: header
+      match: CF-Ray
+      pattern: '.'
+
+- name: 阿里云WAF
+  value: 2
+  category: waf
+  tags: [waf, aliyun, 阿里云]
+  rules:
+    - type: header
+      match: Server
+      pattern: 'Tengine'
+    - type: header
+      match: X-Slash
+      pattern: '.'
+
+- name: 腾讯云WAF
+  value: 2
+  category: waf
+  tags: [waf, tencent, 腾讯云]
+  rules:
+    - type: header
+      match: Server
+      pattern: 'tencent'
+
+- name: 安全狗 SafeDog
+  value: 2
+  category: waf
+  tags: [waf, safedog, 安全狗]
+  rules:
+    - type: header
+      match: Server
+      pattern: 'SafeDog'

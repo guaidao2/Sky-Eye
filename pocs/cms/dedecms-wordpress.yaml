@@ -1,0 +1,87 @@
+id: dedecms-sqli
+
+info:
+  name: 织梦CMS DedeCMS SQL 注入
+  author: sky-eye
+  severity: high
+  description: 织梦CMS plus/flink_add.php SQL 注入漏洞
+  tags: dedecms,cms,sqli
+
+requests:
+  - method: GET
+    path:
+      - "/plus/flink_add.php"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "友情链接"
+          - "flink"
+        condition: or
+---
+id: dedecms-upload
+
+info:
+  name: 织梦CMS 文件上传
+  author: sky-eye
+  severity: critical
+  description: 织梦CMS 后台文件上传漏洞
+  tags: dedecms,cms,upload
+
+requests:
+  - method: GET
+    path:
+      - "/dede/upload.php"
+      - "/include/dialog/select_images.php"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "upload"
+          - "select_images"
+        condition: or
+---
+id: wp-xmlrpc
+
+info:
+  name: WordPress XML-RPC 接口
+  author: sky-eye
+  severity: medium
+  description: WordPress XML-RPC 接口暴露，可被用于爆破/SSRF
+  tags: wordpress,cms
+
+requests:
+  - method: POST
+    path:
+      - "/xmlrpc.php"
+    body: "<?xml version=\"1.0\"?><methodCall><methodName>system.listMethods</methodName></methodCall>"
+    headers:
+      Content-Type: text/xml
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "system.listMethods"
+          - "methodName"
+        condition: or
+---
+id: wp-user-enum
+
+info:
+  name: WordPress 用户枚举
+  author: sky-eye
+  severity: low
+  description: WordPress REST API 用户枚举
+  tags: wordpress,cms
+
+requests:
+  - method: GET
+    path:
+      - "/wp-json/wp/v2/users"
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "name"
+          - "slug"
+        condition: and
