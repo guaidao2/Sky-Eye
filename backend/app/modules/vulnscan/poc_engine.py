@@ -103,6 +103,8 @@ class POCEngine:
             "{{port}}": port,
             "{{Scheme}}": parsed.scheme,
             "{{scheme}}": parsed.scheme,
+            "{{interactsh-url}}": "",
+            "{{interactsh_url}}": "",
         }
 
         for var, val in replacements.items():
@@ -111,10 +113,10 @@ class POCEngine:
 
     async def execute(self, target_url: str, poc_id: str,
                       timeout: int = 15, proxy: str = None) -> Dict:
-        """执行单个 POC
+        """执行单个 POC — 自动检测 OOB 需求
 
         Returns:
-            {poc_id, name, severity, vulnerable, matched, extracted, error}
+            {poc_id, name, severity, vulnerable, matched, extracted, error, oob_triggered}
         """
         poc = self.pocs.get(poc_id)
         if not poc:
@@ -129,10 +131,26 @@ class POCEngine:
             "matched": [],
             "extracted": {},
             "error": None,
+            "oob_triggered": False,
         }
 
-        # 链式请求上下文（用于多步 POC）
+        # 检测是否需要 OOB 回调
+        needs_oob = self._needs_oob(poc)
+        oob_url = ""
+        oob_client = None
+
+        if needs_oob:
+            from app.modules.vulnscan.oob_engine import InteractshClient
+            oob_client = InteractshClient()
+            oob_domain = await oob_client.register()
+            if oob_domain:
+                oob_url = oob_client.get_url()
+                result["oob_url"] = oob_url
+
+        # 链式请求上下文
         context = {"variables": {}}
+        if oob_url:
+            context["variables"]["interactsh-url"] = oob_url
 
         client_kwargs = {
             "timeout": timeout,
@@ -234,7 +252,33 @@ class POCEngine:
                 except Exception as e:
                     result["error"] = f"{type(e).__name__}: {str(e)[:200]}"
 
+        # OOB 回连检测
+        if oob_client and oob_url:
+            try:
+                oob_result = await oob_client.poll(max_wait=10, interval=2)
+                if oob_result["triggered"]:
+                    result["vulnerable"] = True
+                    result["oob_triggered"] = True
+                    result["matched"].extend([f"oob:{p}" for p in oob_result["interactions"]])
+            except Exception as e:
+                result["error"] = f"OOB poll error: {e}"
+            finally:
+                await oob_client.deregister()
+
         return result
+
+    @staticmethod
+    def _needs_oob(poc) -> bool:
+        for req in poc.requests:
+            for m in req.get("matchers", []):
+                if (m.get("part", "") or "").startswith("interactsh"):
+                    return True
+            raw = req.get("raw", "") or ""
+            body = req.get("body", "") or ""
+            path = str(req.get("path", ""))
+            if "{{interactsh-url}}" in raw or "{{interactsh-url}}" in body or "{{interactsh-url}}" in path:
+                return True
+        return False
 
     async def execute_batch(self, target_url: str, poc_ids: List[str],
                             concurrency: int = 5) -> List[Dict]:
